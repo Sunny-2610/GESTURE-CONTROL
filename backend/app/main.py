@@ -51,6 +51,14 @@ def create_app(start_services: bool = True, settings_path=None) -> FastAPI:
     runtime = Runtime(start_services=start_services, settings_path=settings_path)
     attach(app, runtime)
     app.include_router(api_router)
+
+    @app.middleware("http")
+    async def no_cache_index(request, call_next):
+        response = await call_next(request)
+        if request.url.path == "/" or request.url.path.endswith(".html"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
     if FRONTEND_DIST.exists():
         app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
     app.router.lifespan_context = _lifespan(runtime)
