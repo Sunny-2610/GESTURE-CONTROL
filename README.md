@@ -34,10 +34,15 @@ npm --prefix frontend run dev          # http://localhost:5173
 
 ## Live input mode
 
-Mouse/volume actions are dry-run (logged, not dispatched) unless:
+Mouse/volume actions are dry-run (preview) by default. Switch at runtime in
+`Settings -> Safety -> Input mode -> Live` (persisted across restarts); control
+must be stopped before enabling live input.
+
+`GESTURE_LIVE` can override the saved mode at startup:
 
 ```powershell
-$env:GESTURE_LIVE = '1'
+$env:GESTURE_LIVE = '1'   # force live
+$env:GESTURE_LIVE = '0'   # force preview
 ```
 
 ## Tests

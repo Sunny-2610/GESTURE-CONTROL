@@ -31,19 +31,20 @@ Open **http://127.0.0.1:8000** in your browser.
 
 ## 3. Trial mode vs. live mode (IMPORTANT)
 
-By default the app runs in **dry-run**: it tracks your hand and shows
+By default the app runs in **dry-run (preview)**: it tracks your hand and shows
 everything, but mouse/volume actions are only written to the event log —
 nothing moves your cursor.
 
-- **Dry-run (safe)** — default. Practice and tune settings here.
-- **Live mode** — real cursor movement, clicks, scrolling, volume:
+- **Preview (safe)** — default. Practice and tune settings here.
+- **Live mode** — real cursor movement, clicks, scrolling, volume. Select
+  `Settings -> Safety -> Input mode -> Preview | Live`. The choice is saved and
+  survives restarts. Stop control before switching to Live.
 
-  ```powershell
-  $env:GESTURE_LIVE = '1'
-  .venv\Scripts\python.exe backend\run.py
-  ```
+The viewfinder bottom-right chip shows the actual mode (`INPUT LIVE` /
+`INPUT DRY RUN`); the top-right chip shows control state (`LIVE`,
+`PREVIEW ONLY`, `INPUT BLOCKED`).
 
-Start in dry-run. Switch to live only when you are comfortable, sitting at the
+Start in preview. Switch to live only when you are comfortable, sitting at the
 desk, with nothing unsaved.
 
 ## 4. The screen
@@ -130,7 +131,7 @@ Tips:
 4. Try two-finger scroll and volume mode.
 5. Press **EMERGENCY STOP** once, then **RE-ARM**, so you know the drill.
 6. Tune Settings (sensitivity, pinch threshold) to your hand.
-7. Set `$env:GESTURE_LIVE='1'`, restart, and repeat briefly for real.
+7. Set `Settings -> Safety -> Input mode -> Live` and repeat briefly for real.
 
 ## 9. Troubleshooting
 
