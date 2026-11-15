@@ -12,8 +12,11 @@ from app.api.runtime import get_runtime
 from app.schemas.models import (
     ArmRequest,
     CommandResponse,
+    ControllerState,
     EventEntry,
     GestureRegistry,
+    InputModeRequest,
+    InputModeResponse,
     StatusResponse,
     WsEventMessage,
     WsFrameMessage,
@@ -55,6 +58,7 @@ def status(request: Request) -> StatusResponse:
         uptime_s=round(time.time() - rt.started_at, 1),
         fps=rt.pipeline.snapshot.fps if rt.pipeline else None,
         latency_ms=None,
+        input_live=not rt.input_ctl.dry_run,
     )
 
 
@@ -130,6 +134,19 @@ def controller_rearm(request: Request) -> CommandResponse:
     except InvalidTransition as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return CommandResponse(state=rt.machine.state, detail="re-armed")
+
+
+# --- input mode -----------------------------------------------------------------
+
+@router.post("/api/input-mode", response_model=InputModeResponse)
+def set_input_mode(request: Request, body: InputModeRequest) -> InputModeResponse:
+    rt = get_runtime(request)
+    if body.live and rt.machine.state in (ControllerState.ACTIVE, ControllerState.HOLD):
+        raise HTTPException(
+            status_code=409,
+            detail="Stop control before switching to live input.",
+        )
+    return InputModeResponse(live=rt.set_input_live(body.live))
 
 
 # --- camera / video ------------------------------------------------------------
@@ -216,11 +233,22 @@ def get_settings(request: Request) -> Dict:
 def put_settings(request: Request, body: Dict) -> Dict:
     rt = get_runtime(request)
     patch = body.get("settings", body)
+    input_patch = patch.get("input") if isinstance(patch, dict) else None
+    if (
+        isinstance(input_patch, dict)
+        and input_patch.get("mode") == "live"
+        and rt.machine.state in (ControllerState.ACTIVE, ControllerState.HOLD)
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Stop control before switching to live input.",
+        )
     try:
         updated = rt.settings_store.update(patch)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     saved = rt.settings_store.save()
+    rt.apply_input_mode()
     return {
         "settings": saved.model_dump(mode="json"),
         "unsaved": rt.settings_store.unsaved_count(),
@@ -232,6 +260,7 @@ def put_settings(request: Request, body: Dict) -> Dict:
 def reset_settings(request: Request) -> Dict:
     rt = get_runtime(request)
     rt.settings_store.reset()
+    rt.apply_input_mode()
     return {"settings": rt.settings_store.current().model_dump(mode="json"), "unsaved": rt.settings_store.unsaved_count()}
 
 

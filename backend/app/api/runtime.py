@@ -27,7 +27,7 @@ class Runtime:
         self.hub = EventHub()
         self.machine = ControllerMachine(hub=self.hub)
         self.settings_store = SettingsStore(path=settings_path)
-        live_input = os.environ.get("GESTURE_LIVE", "0") == "1"
+        live_input = self._resolve_live_input()
         self.input_ctl = InputController(dry_run=not live_input)
         self.volume_ctl = VolumeController(dry_run=not live_input)
         self.pipeline: Optional[VisionPipeline] = None
@@ -65,6 +65,28 @@ class Runtime:
             return False
 
     # -- actions -----------------------------------------------------------
+
+    def _resolve_live_input(self) -> bool:
+        """GESTURE_LIVE overrides the saved mode when set; otherwise use it."""
+        forced = os.environ.get("GESTURE_LIVE")
+        if forced is not None:
+            return forced == "1"
+        return self.settings_store.current().input.mode == "live"
+
+    def set_input_live(self, live: bool) -> bool:
+        """Switch between dry-run (preview) and real dispatch at runtime."""
+        self.settings_store.update({"input": {"mode": "live" if live else "preview"}})
+        self.settings_store.save()
+        active = self.apply_input_mode()
+        self.machine.emit("INPUT MODE", "live" if active else "preview")
+        return active
+
+    def apply_input_mode(self) -> bool:
+        """Mirror the saved input mode onto the controllers."""
+        live = self.settings_store.current().input.mode == "live"
+        self.input_ctl.set_dry_run(not live)
+        self.volume_ctl.set_dry_run(not live)
+        return not self.input_ctl.dry_run
 
     def emergency_stop(self, source: str = "UI") -> None:
         self.machine.emergency_stop(source=source)

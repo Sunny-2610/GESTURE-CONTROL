@@ -4,7 +4,8 @@ from app.main import create_app
 
 
 @pytest.fixture()
-def app(tmp_path):
+def app(tmp_path, monkeypatch):
+    monkeypatch.delenv("GESTURE_LIVE", raising=False)
     return create_app(start_services=False, settings_path=tmp_path / "settings.json")
 
 

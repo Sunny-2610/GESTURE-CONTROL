@@ -6,7 +6,8 @@ from app.main import create_app
 
 
 @pytest.fixture()
-def app(tmp_path):
+def app(tmp_path, monkeypatch):
+    monkeypatch.delenv("GESTURE_LIVE", raising=False)
     return create_app(start_services=False, settings_path=tmp_path / "settings.json")
 
 
@@ -120,6 +121,40 @@ def test_settings_reset(client):
     client.put("/api/settings", json={"settings": {"scroll": {"speed": 4.0}}})
     res = client.post("/api/settings/reset")
     assert res.json()["settings"]["scroll"]["speed"] == 1.0
+
+
+def test_input_mode_defaults_to_preview(client):
+    assert client.get("/api/status").json()["input_live"] is False
+    assert client.get("/api/settings").json()["settings"]["input"]["mode"] == "preview"
+
+
+def test_input_mode_toggle(client):
+    res = client.post("/api/input-mode", json={"live": True})
+    assert res.status_code == 200
+    assert res.json()["live"] is True
+    assert client.get("/api/status").json()["input_live"] is True
+    assert client.get("/api/settings").json()["settings"]["input"]["mode"] == "live"
+
+    res = client.post("/api/input-mode", json={"live": False})
+    assert res.json()["live"] is False
+    assert client.get("/api/status").json()["input_live"] is False
+    assert client.get("/api/settings").json()["settings"]["input"]["mode"] == "preview"
+
+
+def test_input_mode_live_blocked_while_active(client):
+    arm(client)
+    res = client.post("/api/input-mode", json={"live": True})
+    assert res.status_code == 409
+    client.post("/api/controller/stop")
+    assert client.post("/api/input-mode", json={"live": True}).json()["live"] is True
+
+
+def test_input_mode_persists_across_restart(app, client):
+    client.post("/api/input-mode", json={"live": True})
+    path = app.state.runtime.settings_store.path
+    again = create_app(start_services=False, settings_path=path)
+    with TestClient(again) as restarted:
+        assert restarted.get("/api/status").json()["input_live"] is True
 
 
 def test_events_endpoint(client):

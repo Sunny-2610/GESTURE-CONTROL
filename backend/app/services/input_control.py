@@ -36,6 +36,10 @@ class InputController:
     def last_xy(self) -> Optional[tuple]:
         return self._last_xy
 
+    def set_dry_run(self, dry_run: bool) -> None:
+        with self._lock:
+            self.dry_run = bool(dry_run) or not _PYAUTOGUI_OK
+
     def screen_size(self) -> tuple:
         if not self.dry_run:
             try:
@@ -95,18 +99,26 @@ class VolumeController:
         self._volume = None
         self._local_percent: float = 50.0
         if not dry_run:
-            try:
-                from ctypes import POINTER, cast
+            self._init_backend()
 
-                from comtypes import CLSCTX_ALL
-                from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+    def _init_backend(self) -> None:
+        try:
+            from ctypes import POINTER, cast
 
-                device = AudioUtilities.GetSpeakers()
-                interface = device.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-                self._volume = cast(interface, POINTER(IAudioEndpointVolume))
-                self.available = True
-            except Exception:  # pragma: no cover - depends on audio hardware
-                self.available = False
+            from comtypes import CLSCTX_ALL
+            from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+
+            device = AudioUtilities.GetSpeakers()
+            interface = device.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+            self._volume = cast(interface, POINTER(IAudioEndpointVolume))
+            self.available = True
+        except Exception:  # pragma: no cover - depends on audio hardware
+            self.available = False
+
+    def set_dry_run(self, dry_run: bool) -> None:
+        self.dry_run = dry_run
+        if not dry_run and self._volume is None:
+            self._init_backend()
 
     def get_percent(self) -> float:
         if self._volume is not None:

@@ -44,6 +44,10 @@ class SafetySettings(BaseModel):
     auto_disable_on_disconnect: bool = True
 
 
+class InputSettings(BaseModel):
+    mode: Literal["preview", "live"] = "preview"
+
+
 class GestureToggles(BaseModel):
     closed_fist: bool = True
     volume_mode: bool = True
@@ -59,6 +63,7 @@ class AppSettings(BaseModel):
     scroll: ScrollSettings = Field(default_factory=ScrollSettings)
     volume: VolumeSettings = Field(default_factory=VolumeSettings)
     safety: SafetySettings = Field(default_factory=SafetySettings)
+    input: InputSettings = Field(default_factory=InputSettings)
     gestures: GestureToggles = Field(default_factory=GestureToggles)
 
 
@@ -75,6 +80,14 @@ class ArmRequest(BaseModel):
 class CommandResponse(BaseModel):
     state: ControllerState
     detail: str = ""
+
+
+class InputModeRequest(BaseModel):
+    live: bool = False
+
+
+class InputModeResponse(BaseModel):
+    live: bool = False
 
 
 class GestureInfo(BaseModel):
@@ -134,6 +147,7 @@ class StatusResponse(BaseModel):
     uptime_s: float
     fps: Optional[float] = None
     latency_ms: Optional[float] = None
+    input_live: bool = False
 
 
 # --- WebSocket messages -------------------------------------------------
