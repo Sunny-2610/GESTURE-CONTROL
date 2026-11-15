@@ -62,7 +62,14 @@ class InputController:
         with self._lock:
             size = self.screen_size()
             if self._last_xy is None:
-                self._last_xy = (size[0] // 2, size[1] // 2)
+                if not self.dry_run:
+                    try:
+                        pos = pyautogui.position()
+                        self._last_xy = (int(pos.x), int(pos.y))
+                    except Exception:
+                        self._last_xy = (size[0] // 2, size[1] // 2)
+                else:
+                    self._last_xy = (size[0] // 2, size[1] // 2)
             x = int(max(0, min(size[0] - 1, self._last_xy[0] + dx)))
             y = int(max(0, min(size[1] - 1, self._last_xy[1] + dy)))
             self._last_xy = (x, y)

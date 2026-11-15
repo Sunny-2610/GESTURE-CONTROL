@@ -29,7 +29,7 @@ def test_pointer_moves_cursor(engine):
     engine.dispatch("pointer", hand_landmarks((0.6, 0.5)), 0.5, settings)
     assert engine.input.last_xy is not None
     x1, _ = engine.input.last_xy
-    assert x1 > 960  # moved right of center
+    assert x1 < 960  # raw x grows leftwards (camera facing user), so cursor moves left
 
 
 def test_pinch_click_fires_once_with_cooldown(engine):

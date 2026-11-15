@@ -51,8 +51,15 @@ class ControlEngine:
         settings: AppSettings,
     ) -> None:
         with self._lock:
-            if gesture in ("closed_fist", "open_palm", "none"):
+            if gesture in ("closed_fist", "none"):
                 self._release_baselines()
+                return
+            if gesture == "open_palm":
+                # idle pose: keep the smoothing state but re-acquire the cursor
+                # anchor on the next pointer frame so there is no jump
+                self._scroll_prev = None
+                self._volume_prev = None
+                self._cursor_prev = None
                 return
             if gesture == "pointer":
                 self._pointer(landmarks, settings)
@@ -81,7 +88,7 @@ class ControlEngine:
         self._pinch_down = False
 
     def _pointer(self, landmarks, settings: AppSettings) -> None:
-        tip = (landmarks[8][0], landmarks[8][1])
+        tip = (1.0 - landmarks[8][0], landmarks[8][1])
         a = settings.cursor.smoothing
         if self._smoothed is None:
             self._smoothed = tip
