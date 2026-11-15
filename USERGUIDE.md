@@ -97,6 +97,8 @@ Tips:
 - Curl the unused fingers clearly — half-extended fingers confuse the classifier.
 - Make a fist or open palm to "let go" before switching gestures.
 - Small, slow movements work best at first.
+- The pinch threshold is a fraction of your palm size, so it keeps working when
+  you move closer to or further from the camera.
 
 ### Emergency stop
 
@@ -108,7 +110,8 @@ Tips:
 
 ### Automatic fail-safes
 
-- Hand leaves the frame for 5 s while ACTIVE → control stops automatically.
+- Hand leaves the frame for 5 s while ACTIVE → control holds automatically and
+  resumes on its own as soon as a hand is back in frame.
 - Browser tab/server connection lost → control stops automatically.
   (Both configurable on the Settings page.)
 
@@ -141,7 +144,7 @@ Tips:
 | No skeleton appears | Make sure the camera is started; check 02 Camera for tracking. |
 | Skeleton drawn in ink, not orange | Control is not ACTIVE — that is by design. |
 | Cursor jumps too much | Lower Cursor → Sensitivity or raise Smoothing. |
-| Accidental clicks | Raise Click → Cooldown, or disable pinch in 03 Gestures. |
+| Accidental clicks | Raise Click → Cooldown or Pinch threshold, or disable pinch in 03 Gestures. |
 | Volume changes by itself | Volume-mode misread (thumb up). Make a fist first. |
 | LINK LOST in the status line | Backend not running, or wrong port. Check the console, then RETRY. |
 | Hotkey does nothing | Another app may own the shortcut. Check the event log for `HOTKEY UNAVAILABLE` and free the combo. |
