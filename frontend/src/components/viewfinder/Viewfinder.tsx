@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import type { ControllerState, WsHand } from "../../lib/types";
 import { SkeletonCanvas } from "./SkeletonCanvas";
 import { ActiveRegion, CornerBrackets, EmptyState, OverlayChip } from "./Parts";
-
 interface ViewfinderProps {
   cameraOpen: boolean;
   hands: WsHand[];
@@ -30,7 +29,17 @@ export function Viewfinder({
 }: ViewfinderProps) {
   const img = useRef<HTMLImageElement>(null);
   const [loaded, setLoaded] = useState(false);
+  const [handLost, setHandLost] = useState(false);
   const streamRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (hands.length > 0) {
+      setHandLost(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setHandLost(true), 1500);
+    return () => window.clearTimeout(timer);
+  }, [hands.length]);
 
   useEffect(() => {
     if (!cameraOpen) {
@@ -47,10 +56,13 @@ export function Viewfinder({
   const controlling = state === "ACTIVE" || state === "HOLD";
   const skeletonColor = controlling ? "#FF4A1C" : "#1A1916";
   const modeChip = controlling
-    ? "Live"
+    ? state === "HOLD"
+      ? "Held"
+      : "Live"
     : state === "HALT"
       ? "Input blocked"
       : "Preview only";
+  const handMissing = cameraOpen && handLost && (state === "ACTIVE" || state === "HOLD");
 
   return (
     <div
@@ -87,6 +99,13 @@ export function Viewfinder({
             <OverlayChip position="bottom-left">
               Cursor {cursor[0]} / {cursor[1]}
             </OverlayChip>
+          )}
+          {handMissing && (
+            <div className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center">
+              <span className="inline-block bg-ink px-3 py-1 text-xs uppercase tracking-widest text-paper">
+                No hand in frame &mdash; raise it
+              </span>
+            </div>
           )}
         </>
       )}
