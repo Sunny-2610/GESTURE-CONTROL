@@ -48,7 +48,13 @@ def fingers_extended(landmarks: Sequence[Sequence[float]]) -> List[bool]:
     wrist = landmarks[WRIST]
     out: List[bool] = []
     for tip, ref in TIP_PIP_PAIRS:
-        out.append(distance(landmarks[tip], wrist) > distance(landmarks[ref], wrist))
+        tip_dist = distance(landmarks[tip], wrist)
+        ref_dist = distance(landmarks[ref], wrist)
+        if tip == THUMB_TIP:
+            # the thumb is folded during a pinch, so require a clear margin
+            out.append(tip_dist > ref_dist * 1.15)
+        else:
+            out.append(tip_dist > ref_dist)
     return out
 
 
@@ -56,7 +62,26 @@ def pinch_distance(landmarks: Sequence[Sequence[float]]) -> float:
     return distance(landmarks[THUMB_TIP], landmarks[INDEX_TIP])
 
 
-PINCH_JOIN_DISTANCE = 0.12
+def hand_scale(landmarks: Sequence[Sequence[float]]) -> float:
+    """Size of the palm in normalized image units (wrist -> middle MCP).
+
+    Used to make every distance threshold invariant to how far the user sits
+    from the camera.
+    """
+    scale = distance(landmarks[WRIST], landmarks[MIDDLE_MCP])
+    if scale <= 1e-6:
+        scale = distance(landmarks[WRIST], landmarks[INDEX_MCP])
+    if scale <= 1e-6:
+        scale = 1.0
+    return scale
+
+
+def pinch_ratio(landmarks: Sequence[Sequence[float]]) -> float:
+    """Thumb-tip/index-tip distance expressed in palm sizes (scale invariant)."""
+    return pinch_distance(landmarks) / hand_scale(landmarks)
+
+
+PINCH_JOIN_RATIO = 0.30
 
 
 def classify(
@@ -69,7 +94,7 @@ def classify(
     thumb, index, middle, ring, pinky = extended
     fingers = [index, middle, ring, pinky]
     four_curled = not any(fingers)
-    pinch = pinch_distance(landmarks)
+    pinch = pinch_ratio(landmarks)
 
     if four_curled and not thumb:
         return ("closed_fist", 0.95)
@@ -79,7 +104,7 @@ def classify(
         return ("two_finger_scroll", 0.9)
     if not (middle or ring or pinky):
         # only the index is extended (thumb state free)
-        if pinch < PINCH_JOIN_DISTANCE:
+        if pinch < PINCH_JOIN_RATIO:
             return ("pinch_click", 0.9)
         return ("pointer", 0.9)
     if all(fingers):
@@ -96,4 +121,5 @@ def classify(
 
 
 def pinch_active(landmarks: Sequence[Sequence[float]], threshold: float) -> bool:
-    return pinch_distance(landmarks) < threshold
+    """True when the pinch is closed tighter than the given palm-size ratio."""
+    return pinch_ratio(landmarks) < threshold

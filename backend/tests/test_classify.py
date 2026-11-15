@@ -24,8 +24,7 @@ def hand(tips_y, refs_y, thumb_tip=[0.4, 0.6], thumb_ref=[0.38, 0.7], pinch_gap=
         lm[base + 2] = [xs[i], (ref_y + tip_y) / 2, 0.0]  # DIP
         lm[base + 3] = [xs[i], tip_y, 0.0]
     if pinch_gap is not None:
-        lm[4] = [0.55, 0.65, 0.0]  # thumb tip near index tip
-        lm[8] = [0.55, 0.65 + pinch_gap, 0.0]
+        lm[4] = [lm[8][0], lm[8][1] + pinch_gap, 0.0]  # thumb tip touching index tip
     return lm
 
 
@@ -86,3 +85,33 @@ def test_pinch_distance():
     lm = hand(tips_y=[0.30, 0.25, 0.28, 0.32], refs_y=[0.55, 0.53, 0.55, 0.58],
               pinch_gap=0.03)
     assert pinch_distance(lm) < 0.05
+
+
+def test_pointing_with_thumb_near_index_is_pointer():
+    # index only extended, thumb tip resting alongside the index finger
+    lm = hand(tips_y=[0.30, 0.72, 0.70, 0.74], refs_y=[0.55, 0.66, 0.68, 0.72],
+              thumb_tip=[0.50, 0.48], thumb_ref=[0.38, 0.70])
+    ext = fingers_extended(lm)
+    gesture, _ = classify(lm, ext)
+    assert gesture == "pointer"
+
+
+def test_pinch_with_closed_thumb_and_index_is_pinch_click():
+    lm = hand(tips_y=[0.30, 0.72, 0.70, 0.74], refs_y=[0.55, 0.66, 0.68, 0.72],
+              pinch_gap=0.01)
+    ext = fingers_extended(lm)
+    gesture, _ = classify(lm, ext)
+    assert gesture == "pinch_click"
+
+
+def test_classification_is_invariant_to_hand_distance():
+    near = hand(tips_y=[0.30, 0.72, 0.70, 0.74], refs_y=[0.55, 0.66, 0.68, 0.72],
+                thumb_tip=[0.50, 0.48], thumb_ref=[0.38, 0.70])
+    # same pose, but the hand is twice as small on screen (user farther away)
+    far = []
+    for point in near:
+        x, y = point[0], point[1]
+        far.append([0.5 + (x - 0.5) * 0.5, 0.9 + (y - 0.9) * 0.5])
+    g_near, _ = classify(near)
+    g_far, _ = classify(far)
+    assert g_near == g_far == "pointer"

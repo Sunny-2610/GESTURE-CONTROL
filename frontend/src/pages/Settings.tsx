@@ -77,8 +77,8 @@ export function SettingsPage() {
         </SettingsGroup>
 
         <SettingsGroup name="Click">
-          <SettingsRow label="Pinch threshold" description="Thumb–index distance that triggers a click." {...changedRow(["click", "pinch_threshold"], settings.saved, s)}>
-            {num(["click", "pinch_threshold"], s.click.pinch_threshold, 0.02, 0.15, 0.01, (v) => v.toFixed(2))}
+          <SettingsRow label="Pinch threshold" description="Thumb–index distance that triggers a click (fraction of palm size)." {...changedRow(["click", "pinch_threshold"], settings.saved, s)}>
+            {num(["click", "pinch_threshold"], s.click.pinch_threshold, 0.1, 0.9, 0.01, (v) => v.toFixed(2))}
           </SettingsRow>
           <SettingsRow label="Cooldown" description="Minimum seconds between clicks." {...changedRow(["click", "cooldown"], settings.saved, s)}>
             {num(["click", "cooldown"], s.click.cooldown, 0.1, 2, 0.1, (v) => v.toFixed(1))}

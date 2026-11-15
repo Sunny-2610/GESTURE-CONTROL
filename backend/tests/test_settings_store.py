@@ -11,7 +11,7 @@ def store(tmp_path) -> SettingsStore:
 def test_defaults(store):
     s = store.current()
     assert s.cursor.control_hand == "right"
-    assert s.click.pinch_threshold == 0.06
+    assert s.click.pinch_threshold == 0.3
     assert s.safety.auto_disable_on_disconnect is True
     assert store.unsaved_count() == 0
 

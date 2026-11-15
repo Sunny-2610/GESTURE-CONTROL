@@ -23,7 +23,7 @@ class CursorSettings(BaseModel):
 
 
 class ClickSettings(BaseModel):
-    pinch_threshold: float = Field(default=0.06, ge=0.02, le=0.15)
+    pinch_threshold: float = Field(default=0.3, ge=0.1, le=0.9)
     cooldown: float = Field(default=0.4, ge=0.1, le=2.0)
     double_click: bool = False
 

@@ -67,6 +67,7 @@ class SettingsStore:
             return
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
+            raw = _migrate(raw)
             loaded = AppSettings.model_validate(raw)
         except (OSError, json.JSONDecodeError, ValidationError):
             return
@@ -79,6 +80,16 @@ class SettingsStore:
         tmp = self.path.with_suffix(".tmp")
         tmp.write_text(settings.model_dump_json(indent=2), encoding="utf-8")
         tmp.replace(self.path)
+
+
+def _migrate(raw: Dict) -> Dict:
+    """Upgrade legacy absolute pinch thresholds to palm-size ratios."""
+    click = raw.get("click")
+    if isinstance(click, dict):
+        threshold = click.get("pinch_threshold")
+        if isinstance(threshold, (int, float)) and threshold < 0.15:
+            click["pinch_threshold"] = 0.3
+    return raw
 
 
 def _deep_merge(base: Dict, patch: Dict) -> None:
