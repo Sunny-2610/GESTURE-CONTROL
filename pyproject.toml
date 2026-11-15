@@ -1,0 +1,24 @@
+[project]
+name = "ai-hand-gesture-controller"
+version = "0.1.0"
+description = "Control a Windows computer with webcam hand gestures (dry-run first, safety-gated live mode)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "mediapipe==0.10.21",
+    "opencv-contrib-python==4.10.0.84",
+    "numpy==1.26.4",
+    "fastapi~=0.115",
+    "uvicorn[standard]~=0.34",
+    "websockets~=15.0",
+    "pydantic~=2.10",
+    "pyautogui==0.9.54",
+    "pycaw==20240210",
+    "comtypes~=1.4",
+]
+
+[dependency-groups]
+dev = [
+    "pytest~=8.3",
+    "pytest-asyncio~=0.25",
+    "httpx~=0.28",
+]
