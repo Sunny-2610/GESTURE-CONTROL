@@ -99,7 +99,30 @@ def test_auto_disable_ignores_stale_hand_timestamp():
 
     pipeline._last_hand_seen = time.time()
     pipeline._check_auto_disable(pipeline._last_hand_seen + 6.0)
-    assert machine.state.value == "OFF"
+    assert machine.state.value == "HOLD"
+    assert pipeline._auto_hold is True
+
+
+def test_auto_hold_resumes_when_the_hand_returns():
+    from app.state.machine import ControllerMachine
+
+    machine = ControllerMachine()
+    pipeline = VisionPipeline(
+        machine=machine,
+        settings_store=_FakeStore(),
+        input_ctl=InputController(dry_run=True),
+        volume_ctl=VolumeController(dry_run=True),
+        emit=lambda e, d: None,
+    )
+    machine.arm()
+    machine.activate()
+    pipeline._last_hand_seen = time.time()
+    pipeline._check_auto_disable(pipeline._last_hand_seen + 6.0)
+    assert machine.state.value == "HOLD"
+
+    pipeline._resume_on_hand()
+    assert machine.state.value == "ACTIVE"
+    assert pipeline._auto_hold is False
 
 
 def test_single_hand_dispatches_even_when_role_is_secondary():

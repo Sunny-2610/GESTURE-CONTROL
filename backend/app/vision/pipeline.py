@@ -78,6 +78,7 @@ class VisionPipeline:
         self._pending_count: int = 0
         self._stable_gesture: str = "none"
         self._auto_disabled: bool = False
+        self._auto_hold: bool = False
         self._last_cam_error: Optional[str] = None
         # all cv2.VideoCapture calls run on the vision thread via this queue
         self._cmd_q: "queue.Queue[tuple]" = queue.Queue()
@@ -195,6 +196,7 @@ class VisionPipeline:
         if hands:
             self._last_hand_seen = now
             self._auto_disabled = False
+            self._resume_on_hand()
             self._handle_control(hands[0], len(hands))
         else:
             self._check_auto_disable(now)
@@ -245,6 +247,17 @@ class VisionPipeline:
         self._pending_count = 0
         self._stable_gesture = "none"
 
+    def _resume_on_hand(self) -> None:
+        """Bring the controller back from an automatic hold once a hand returns."""
+        if not self._auto_hold or self.machine.state is not ControllerState.HOLD:
+            return
+        try:
+            self.machine.resume()
+        except Exception:
+            return
+        self._auto_hold = False
+        self.emit("CONTROL RESUMED", "hand back in frame")
+
     def _check_auto_disable(self, now: float) -> None:
         settings = self.settings_store.current()
         limit = settings.safety.auto_disable_no_hand
@@ -254,8 +267,9 @@ class VisionPipeline:
         baseline = max(self._last_hand_seen, self.machine.changed_at)
         if now - baseline > limit and not self._auto_disabled:
             self._auto_disabled = True
-            self.emit("AUTO DISABLED", f"no hand for {limit:.0f} s")
+            self.emit("AUTO HOLD", f"no hand for {limit:.0f} s")
             try:
-                self.machine.stop(reason=f"no hand for {limit:.0f} s")
+                self.machine.pause()
+                self._auto_hold = True
             except Exception:
                 pass
