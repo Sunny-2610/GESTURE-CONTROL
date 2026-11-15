@@ -15,7 +15,7 @@ MODEL_PATH = Path(__file__).resolve().parents[2] / "models" / "hand_landmarker.t
 class CameraDevice:
     """One cv2.VideoCapture owned and driven by the pipeline thread only."""
 
-    def __init__(self, index: int = 0, width: int = 640, height: int = 480) -> None:
+    def __init__(self, index: int = 0, width: int = 1280, height: int = 720) -> None:
         self.index = index
         self.width = width
         self.height = height
@@ -36,9 +36,11 @@ class CameraDevice:
                 self.error = "Camera unavailable or blocked by another application."
                 cap.release()
                 return False
+            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
             cap.set(cv2.CAP_PROP_FPS, 30)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             self._cap = cap
             self.error = None
             return True
@@ -121,7 +123,8 @@ class HandLandmarker:
             hands.append([[p.x, p.y, p.z] for p in lm_list])
         for handed in result.handedness or []:
             if handed:
-                labels.append((handed[0].category_name, float(handed[0].score)))
+                name = handed[0].category_name
+                labels.append(("Left" if name == "Right" else "Right", float(handed[0].score)))
         return hands, labels
 
 
