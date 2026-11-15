@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-paper text-ink font-sans;
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 3px solid theme("colors.ink.DEFAULT");
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* native range input styled per Design.md 7.10 */
+input[type="range"].gc-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  height: 24px;
+  width: 100%;
+  cursor: pointer;
+}
+input[type="range"].gc-slider::-webkit-slider-runnable-track {
+  height: 1px;
+  background: theme("colors.ink.DEFAULT");
+}
+input[type="range"].gc-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  background: theme("colors.ink.DEFAULT");
+  border-radius: 0;
+}
+input[type="range"].gc-slider::-moz-range-track {
+  height: 1px;
+  background: theme("colors.ink.DEFAULT");
+}
+input[type="range"].gc-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: theme("colors.ink.DEFAULT");
+  border: none;
+  border-radius: 0;
+}
+input[type="range"].gc-slider:disabled::-webkit-slider-thumb {
+  background: theme("colors.ink.muted");
+}
+
+/* hatching pattern for HOLD state (7.5) */
+.gc-hatch {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 4px,
+    theme("colors.paper.DEFAULT") 4px,
+    theme("colors.paper.DEFAULT") 6px
+  );
+}
