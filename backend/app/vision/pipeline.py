@@ -14,12 +14,13 @@ from typing import Deque, Dict, List, Optional
 
 import numpy as np
 
-from app.schemas.models import AppSettings, ControllerState
+from app.schemas.models import ControllerState
 from app.services.control_engine import ControlEngine
-from app.services.gestures_registry import ORDER
 from app.state.machine import ControllerMachine
 from app.vision.capture import CameraDevice, HandLandmarker, encode_jpeg
-from app.vision.classify import classify, fingers_extended, pinch_distance
+from app.vision.classify import classify, fingers_extended, pinch_ratio
+
+STABLE_FRAMES = 3
 
 
 class FrameSnapshot:
@@ -68,12 +69,14 @@ class VisionPipeline:
         self.input_ctl = input_ctl
         self.volume_ctl = volume_ctl
         self.engine = ControlEngine(input_ctl, volume_ctl, emit)
-        self.enabled_gestures: Dict[str, bool] = {name: True for name in ORDER}
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._fps_hist: Deque[float] = deque(maxlen=30)
         self._last_hand_seen: float = 0.0
         self._last_gesture: str = "none"
+        self._pending_gesture: str = "none"
+        self._pending_count: int = 0
+        self._stable_gesture: str = "none"
         self._auto_disabled: bool = False
         self._last_cam_error: Optional[str] = None
         # all cv2.VideoCapture calls run on the vision thread via this queue
@@ -174,7 +177,7 @@ class VisionPipeline:
                         "gesture": gesture,
                         "landmarks": [[round(p[0], 4), round(p[1], 4), round(p[2], 4)] for p in lm],
                         "finger_states": ext,
-                        "pinch": round(pinch_distance(lm), 4),
+                        "pinch": round(pinch_ratio(lm), 4),
                     }
                 )
             jpeg = encode_jpeg(frame)
@@ -192,7 +195,7 @@ class VisionPipeline:
         if hands:
             self._last_hand_seen = now
             self._auto_disabled = False
-            self._handle_control(hands[0])
+            self._handle_control(hands[0], len(hands))
         else:
             self._check_auto_disable(now)
 
@@ -208,21 +211,39 @@ class VisionPipeline:
 
     # -- control dispatch --------------------------------------------------------
 
-    def _handle_control(self, hand: Dict) -> None:
+    def _handle_control(self, hand: Dict, hand_count: int = 1) -> None:
         settings = self.settings_store.current()
         state = self.machine.state
-        gesture = hand["gesture"]
         if state is ControllerState.ACTIVE:
+            gesture = self._stabilize(hand["gesture"])
             if self._last_gesture != gesture:
                 self.emit(gesture.upper(), f"conf {hand['confidence']:.2f}")
                 self._last_gesture = gesture
-            if self.enabled_gestures.get(gesture, True) and hand["role"] == "primary":
+            enabled = settings.gestures.model_dump()
+            is_control_hand = hand["role"] == "primary" or hand_count == 1
+            if enabled.get(gesture, True) and is_control_hand:
                 self.engine.dispatch(
                     gesture, hand["landmarks"], hand["pinch"], settings
                 )
         elif state is ControllerState.HOLD or state is ControllerState.ARMED:
+            self._reset_gesture_stability()
             self.engine.reset()
-            self._last_gesture = gesture
+            self._last_gesture = hand["gesture"]
+
+    def _stabilize(self, raw: str) -> str:
+        if raw == self._pending_gesture:
+            self._pending_count += 1
+        else:
+            self._pending_gesture = raw
+            self._pending_count = 1
+        if raw != self._stable_gesture and self._pending_count >= STABLE_FRAMES:
+            self._stable_gesture = raw
+        return self._stable_gesture
+
+    def _reset_gesture_stability(self) -> None:
+        self._pending_gesture = "none"
+        self._pending_count = 0
+        self._stable_gesture = "none"
 
     def _check_auto_disable(self, now: float) -> None:
         settings = self.settings_store.current()
@@ -230,7 +251,8 @@ class VisionPipeline:
         state = self.machine.state
         if state is not ControllerState.ACTIVE or limit <= 0:
             return
-        if self._last_hand_seen and now - self._last_hand_seen > limit and not self._auto_disabled:
+        baseline = max(self._last_hand_seen, self.machine.changed_at)
+        if now - baseline > limit and not self._auto_disabled:
             self._auto_disabled = True
             self.emit("AUTO DISABLED", f"no hand for {limit:.0f} s")
             try:

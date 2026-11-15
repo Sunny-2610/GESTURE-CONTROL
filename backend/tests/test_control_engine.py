@@ -80,6 +80,88 @@ def test_volume_dry_run(engine):
     assert after > before
 
 
+def test_auto_disable_ignores_stale_hand_timestamp():
+    from app.state.machine import ControllerMachine
+
+    machine = ControllerMachine()
+    pipeline = VisionPipeline(
+        machine=machine,
+        settings_store=_FakeStore(),
+        input_ctl=InputController(dry_run=True),
+        volume_ctl=VolumeController(dry_run=True),
+        emit=lambda e, d: None,
+    )
+    pipeline._last_hand_seen = time.time() - 60.0
+    machine.arm()
+    machine.activate()
+    pipeline._check_auto_disable(time.time())
+    assert machine.state.value == "ACTIVE"
+
+    pipeline._last_hand_seen = time.time()
+    pipeline._check_auto_disable(pipeline._last_hand_seen + 6.0)
+    assert machine.state.value == "OFF"
+
+
+def test_single_hand_dispatches_even_when_role_is_secondary():
+    from app.state.machine import ControllerMachine
+
+    machine = ControllerMachine()
+    pipeline = VisionPipeline(
+        machine=machine,
+        settings_store=_FakeStore(),
+        input_ctl=InputController(dry_run=True),
+        volume_ctl=VolumeController(dry_run=True),
+        emit=lambda e, d: None,
+    )
+    hand = {
+        "hand": "Left",
+        "role": "secondary",
+        "confidence": 0.95,
+        "gesture": "pointer",
+        "landmarks": hand_landmarks((0.5, 0.5)),
+        "finger_states": [False, True, False, False, False],
+        "pinch": 0.5,
+    }
+    machine.arm()
+    machine.activate()
+    for _ in range(3):
+        pipeline._handle_control(hand, 1)
+    pipeline._handle_control({**hand, "landmarks": hand_landmarks((0.6, 0.5))}, 1)
+    assert pipeline.input_ctl.last_xy is not None
+
+
+def test_gesture_flicker_is_ignored():
+    from app.state.machine import ControllerMachine
+
+    machine = ControllerMachine()
+    pipeline = VisionPipeline(
+        machine=machine,
+        settings_store=_FakeStore(),
+        input_ctl=InputController(dry_run=True),
+        volume_ctl=VolumeController(dry_run=True),
+        emit=lambda e, d: None,
+    )
+    hand = {
+        "hand": "Right",
+        "role": "primary",
+        "confidence": 0.95,
+        "gesture": "pointer",
+        "landmarks": hand_landmarks((0.5, 0.5)),
+        "finger_states": [False, True, False, False, False],
+        "pinch": 0.5,
+    }
+    machine.arm()
+    machine.activate()
+    for _ in range(3):
+        pipeline._handle_control(hand)
+    assert pipeline._stable_gesture == "pointer"
+    pipeline._handle_control({**hand, "gesture": "pinch_click", "pinch": 0.01})
+    assert pipeline._stable_gesture == "pointer"
+    for _ in range(2):
+        pipeline._handle_control({**hand, "gesture": "pinch_click", "pinch": 0.01})
+    assert pipeline._stable_gesture == "pinch_click"
+
+
 def test_pipeline_dispatches_only_when_active():
     from app.state.machine import ControllerMachine
 
@@ -105,7 +187,8 @@ def test_pipeline_dispatches_only_when_active():
     assert pipeline.input_ctl.last_xy is None
     machine.arm()
     machine.activate()
-    pipeline._handle_control(hand)  # ACTIVE: acquisition, still no move
+    for _ in range(3):
+        pipeline._handle_control(hand)  # ACTIVE: acquisition, still no move
     pipeline._handle_control({**hand, "landmarks": hand_landmarks((0.6, 0.5))})
     assert pipeline.input_ctl.last_xy is not None
     assert events  # gesture-change events logged
