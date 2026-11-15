@@ -32,6 +32,7 @@ class Runtime:
         self.volume_ctl = VolumeController(dry_run=not live_input)
         self.pipeline: Optional[VisionPipeline] = None
         self.hotkey = None
+        self._camera_probe_ok = False
         if start_services:
             from app.services.hotkey import EmergencyHotkey
 
@@ -43,6 +44,25 @@ class Runtime:
                 emit=self.machine.emit,
             )
             self.hotkey = EmergencyHotkey(self.emergency_stop)
+            self._camera_probe_ok = self._probe_camera()
+
+    @staticmethod
+    def _probe_camera() -> bool:
+        """One-shot camera probe, run once at startup only.
+
+        Opening a second cv2.VideoCapture while the vision thread owns the
+        camera corrupts DirectShow state and crashes the process, so this must
+        never run from a request handler.
+        """
+        try:
+            import cv2
+
+            cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+            ok = bool(cap.isOpened())
+            cap.release()
+            return ok
+        except Exception:
+            return False
 
     # -- actions -----------------------------------------------------------
 
@@ -52,19 +72,13 @@ class Runtime:
     # -- derived info ---------------------------------------------------------
 
     def system_checks(self) -> SystemChecks:
+        cam_open = bool(self.pipeline and self.pipeline.camera.open)
         checks = SystemChecks(
+            camera_access="OK" if (cam_open or self._camera_probe_ok) else "FAIL",
             model_loaded="OK" if (self.pipeline is None or self.pipeline.landmarker.available) else "FAIL",
             input_backend="OK" if self.input_ctl.available else "FAIL",
-            volume_backend="OK" if self.volume_ctl.available or self.volume_ctl.dry_run else "FAIL",
+            volume_backend="OK" if (self.volume_ctl.available or self.volume_ctl.dry_run) else "FAIL",
         )
-        try:
-            import cv2
-
-            cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-            checks.camera_access = "OK" if cap.isOpened() else "FAIL"
-            cap.release()
-        except Exception:
-            checks.camera_access = "FAIL"
         return checks
 
     def system_info(self) -> dict:
