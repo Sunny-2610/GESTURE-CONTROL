@@ -14,16 +14,18 @@ export function useInputMode() {
     if (status) setMode(status.input_live ? "live" : "preview");
   }, [status?.input_live]);
 
-  const change = async (next: InputMode) => {
-    if (next === mode || busy) return;
+  const change = async (next: InputMode): Promise<boolean> => {
+    if (next === mode || busy) return next === mode;
     setBusy(true);
     setError(null);
     try {
       const res = await api.setInputMode(next === "live");
       setMode(res.live ? "live" : "preview");
       refreshStatus();
+      return res.live === (next === "live");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Mode switch failed");
+      return false;
     } finally {
       setBusy(false);
     }

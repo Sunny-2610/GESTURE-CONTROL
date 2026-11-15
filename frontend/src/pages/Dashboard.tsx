@@ -111,6 +111,11 @@ export function Dashboard() {
   const inputMode = useInputMode();
   const [armingOpen, setArmingOpen] = useState(false);
 
+  const changeMode = async (next: "preview" | "live") => {
+    const ok = await inputMode.change(next);
+    if (ok && next === "live" && state === "OFF") setArmingOpen(true);
+  };
+
   const primaryAction = () => {
     if (state === "OFF") setArmingOpen(true);
     else if (state === "ACTIVE") api.controller.pause().catch(() => {});
@@ -142,7 +147,9 @@ export function Dashboard() {
         />
         {state === "OFF" && (
           <p className="mt-4 max-w-[70ch] font-body text-ink-muted">
-            No actions are sent until control is started.
+            {inputMode.mode === "live"
+              ? "Live input is enabled, but control is off. Press Start control and confirm the three checks to dispatch gesture actions."
+              : "No actions are sent until control is started."}
           </p>
         )}
       </div>
@@ -166,7 +173,7 @@ export function Dashboard() {
                 { value: "preview", label: "Preview" },
                 { value: "live", label: "Live" },
               ]}
-              onChange={inputMode.change}
+              onChange={changeMode}
             />
           </div>
           {inputMode.error && (
