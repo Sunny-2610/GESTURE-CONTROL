@@ -51,6 +51,13 @@ export const api = {
       json<{ settings: Settings }>(r),
     ),
 
+  setInputMode: (live: boolean) =>
+    fetch("/api/input-mode", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ live }),
+    }).then((r) => json<{ live: boolean }>(r)),
+
   controller: {
     start: (checks: { hand_visible: boolean; nothing_unsaved: boolean; emergency_shortcut: boolean }) =>
       fetch("/api/controller/start", {

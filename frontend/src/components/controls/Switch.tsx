@@ -42,14 +42,20 @@ export function SegmentedControl<T extends string>({
   options,
   onChange,
   label,
+  wide = false,
 }: {
   value: T;
   options: { value: T; label: string }[];
   onChange: (value: T) => void;
   label: string;
+  wide?: boolean;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="flex h-6 w-14 items-stretch border border-ink">
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className={`flex h-6 items-stretch border border-ink ${wide ? "w-36" : "w-14"}`}
+    >
       {options.map((opt) => {
         const selected = opt.value === value;
         return (

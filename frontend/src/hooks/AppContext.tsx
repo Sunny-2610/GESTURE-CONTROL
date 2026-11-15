@@ -30,7 +30,7 @@ interface AppData {
 const Ctx = createContext<AppData | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const { status, error, connected } = useStatus();
+  const { status, error, connected, refresh } = useStatus();
   const { events, push, setEvents } = useEventLog();
   const [state, setState] = useState<ControllerState>("OFF");
   const [hands, setHands] = useState<WsHand[]>([]);
@@ -91,9 +91,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       confidence,
       cursor,
       cameraOpen: status?.camera.open ?? false,
-      refreshStatus: () => api.status().then(() => undefined).catch(() => undefined),
+      refreshStatus: refresh,
     }),
-    [status, connected, state, hands, fps, procMs, events, detected, confidence, cursor],
+    [status, connected, state, hands, fps, procMs, events, detected, confidence, cursor, refresh],
   );
 
   void error;

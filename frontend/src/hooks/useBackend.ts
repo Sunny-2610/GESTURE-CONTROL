@@ -8,6 +8,7 @@ const MAX_EVENTS = 50;
 export function useStatus() {
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,9 +34,11 @@ export function useStatus() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, []);
+  }, [refreshKey]);
 
-  return { status, error, connected: error === null };
+  const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  return { status, error, connected: error === null, refresh };
 }
 
 export type ControllerState = Status["controller"]["state"];

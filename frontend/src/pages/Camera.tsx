@@ -115,6 +115,7 @@ export function CameraPage() {
           cameraOpen={cameraOpen}
           hands={showSkeleton ? hands : []}
           state={state}
+          liveInput={status?.input_live ?? false}
           gesture={detectedGesture}
           confidence={confidence}
           cursor={null}

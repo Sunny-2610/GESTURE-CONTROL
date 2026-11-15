@@ -11,6 +11,7 @@ export function AboutPage() {
     ["Model", system?.model],
     ["Frontend", system?.frontend],
     ["Session", system?.session],
+    ["Input mode", status ? (status.input_live ? "LIVE" : "DRY RUN") : undefined],
   ] as const;
 
   const checkRows = [

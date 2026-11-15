@@ -44,6 +44,7 @@ export interface Status {
   uptime_s: number;
   fps: number | null;
   latency_ms: number | null;
+  input_live: boolean;
 }
 
 export interface GestureInfo {
@@ -70,6 +71,7 @@ export interface Settings {
     auto_disable_no_hand: number;
     auto_disable_on_disconnect: boolean;
   };
+  input: { mode: "preview" | "live" };
   gestures: Record<string, boolean>;
 }
 

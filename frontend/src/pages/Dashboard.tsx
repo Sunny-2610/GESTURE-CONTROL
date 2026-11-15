@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Viewfinder } from "../components/viewfinder";
 import { StateBlock, Reading, EventLog } from "../components/readings";
-import { Button, Sheet } from "../components/controls";
+import { Button, Sheet, SegmentedControl } from "../components/controls";
 import { Shortcut } from "../components/controls/Keycap";
 import { useAppData } from "../hooks/AppContext";
+import { useInputMode } from "../hooks/useInputMode";
 import { api } from "../lib/api";
 
 function ArmingSheet({ open, onClose, onArmed }: { open: boolean; onClose: () => void; onArmed: () => void }) {
@@ -107,6 +108,7 @@ function ArmingSheet({ open, onClose, onArmed }: { open: boolean; onClose: () =>
 
 export function Dashboard() {
   const { status, state, hands, fps, events, detectedGesture, confidence, cursor, cameraOpen } = useAppData();
+  const inputMode = useInputMode();
   const [armingOpen, setArmingOpen] = useState(false);
 
   const primaryAction = () => {
@@ -125,6 +127,7 @@ export function Dashboard() {
           cameraOpen={cameraOpen}
           hands={hands}
           state={state}
+          liveInput={status?.input_live ?? false}
           gesture={detectedGesture}
           confidence={confidence}
           cursor={cursor}
@@ -151,6 +154,26 @@ export function Dashboard() {
         </div>
         <div className="flex-1 border-t border-ink">
           <EventLog events={events} max={8} />
+        </div>
+        <div className="border-t border-ink px-6 py-4">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-label uppercase tracking-[0.06em] text-ink-muted">Input mode</span>
+            <SegmentedControl
+              label="Input mode"
+              wide
+              value={inputMode.mode}
+              options={[
+                { value: "preview", label: "Preview" },
+                { value: "live", label: "Live" },
+              ]}
+              onChange={inputMode.change}
+            />
+          </div>
+          {inputMode.error && (
+            <p className="mt-2 border-l-[3px] border-signal-text pl-3 font-label uppercase tracking-[0.06em] text-signal-text">
+              {inputMode.error}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-3 border-t border-ink p-6">
           <Button onClick={primaryAction} disabled={primaryDisabled}>

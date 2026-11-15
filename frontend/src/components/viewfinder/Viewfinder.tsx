@@ -7,6 +7,7 @@ interface ViewfinderProps {
   cameraOpen: boolean;
   hands: WsHand[];
   state: ControllerState;
+  liveInput: boolean;
   gesture: string | null;
   confidence: number | null;
   cursor: [number, number] | null;
@@ -19,6 +20,7 @@ export function Viewfinder({
   cameraOpen,
   hands,
   state,
+  liveInput,
   gesture,
   confidence,
   cursor,
@@ -78,6 +80,9 @@ export function Viewfinder({
             {gesture ? `${gesture.replace(/_/g, " ")} ${confidence?.toFixed(2) ?? ""}` : "NO HAND"}
           </OverlayChip>
           <OverlayChip position="top-right">{modeChip}</OverlayChip>
+          <OverlayChip position="bottom-right">
+            {liveInput ? "Input live" : "Input dry run"}
+          </OverlayChip>
           {cursor && (
             <OverlayChip position="bottom-left">
               Cursor {cursor[0]} / {cursor[1]}
