@@ -3,10 +3,11 @@ import { EmergencyStop } from "./EmergencyStop";
 
 const ITEMS = [
   { index: "01", name: "Dashboard", to: "/" },
-  { index: "02", name: "Camera", to: "/camera" },
-  { index: "03", name: "Gestures", to: "/gestures" },
-  { index: "04", name: "Settings", to: "/settings" },
-  { index: "05", name: "About", to: "/about" },
+  { index: "02", name: "Tutorial", to: "/tutorial" },
+  { index: "03", name: "Camera", to: "/camera" },
+  { index: "04", name: "Gestures", to: "/gestures" },
+  { index: "05", name: "Settings", to: "/settings" },
+  { index: "06", name: "About", to: "/about" },
 ];
 
 export function TopBar() {
