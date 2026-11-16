@@ -1,7 +1,11 @@
 """Heuristic gesture classification from MediaPipe hand landmarks.
 
 Priority order (1 = highest, Design.md 8.3):
-closed fist, volume mode, two-finger scroll, pinch click, pointer, open palm.
+closed fist, pinch click, three-finger volume, two-finger scroll, pointer,
+open palm.
+
+The thumb is ignored for classification (thumb poses are unreliable); it is
+only used inside the pinch distance (thumb tip <-> index tip).
 """
 from __future__ import annotations
 
@@ -29,11 +33,12 @@ TIP_PIP_PAIRS = [
     (PINKY_TIP, PINKY_PIP),
 ]
 
+# extension pattern per pose, as (index, middle, ring, pinky); thumb ignored
 POSE_TABLE = {
     "closed_fist": (False, False, False, False),
-    "volume_mode": (True, False, False, False),
-    "two_finger_scroll": (False, True, True, False),
-    "pointer": (False, True, False, False),
+    "three_finger": (True, True, True, False),
+    "two_finger_scroll": (True, True, False, False),
+    "pointer": (True, False, False, False),
     "open_palm": (True, True, True, True),
 }
 
@@ -44,7 +49,12 @@ def distance(a: Sequence[float], b: Sequence[float]) -> float:
 
 def fingers_extended(landmarks: Sequence[Sequence[float]]) -> List[bool]:
     """Five booleans (thumb..pinky): a finger counts extended when its tip is
-    farther from the wrist than the reference joint."""
+    farther from the wrist than the reference joint.
+
+    The thumb entry uses a clear margin (its tip is folded during a pinch);
+    classification itself ignores it and only uses the thumb tip position for
+    the pinch distance.
+    """
     wrist = landmarks[WRIST]
     out: List[bool] = []
     for tip, ref in TIP_PIP_PAIRS:
@@ -88,33 +98,38 @@ def classify(
     landmarks: Sequence[Sequence[float]],
     extended: Optional[List[bool]] = None,
 ) -> Tuple[str, float]:
-    """Return (gesture, confidence). Confidence is a simple landmark-spread score."""
+    """Return (gesture, confidence), evaluated in exactly the priority order.
+
+    1 closed_fist       all four fingers curled (thumb ignored)  -> pause
+    2 pinch_click       pinch ratio < PINCH_JOIN_RATIO and the other
+                        three fingers not all extended (index state free)
+    3 three_finger      index+middle+ring extended, pinky curled -> volume
+    4 two_finger_scroll index+middle extended, ring+pinky curled -> scroll
+    5 pointer           only the index extended                  -> cursor
+    6 open_palm         all four extended                        -> swipe
+    """
     if extended is None:
         extended = fingers_extended(landmarks)
-    thumb, index, middle, ring, pinky = extended
-    fingers = [index, middle, ring, pinky]
-    four_curled = not any(fingers)
+    _thumb, index, middle, ring, pinky = extended
+    fingers = (index, middle, ring, pinky)
     pinch = pinch_ratio(landmarks)
 
-    if four_curled and not thumb:
+    if not any(fingers):
         return ("closed_fist", 0.95)
-    if four_curled and thumb:
-        return ("volume_mode", 0.85)
+    if pinch < PINCH_JOIN_RATIO and not all((middle, ring, pinky)):
+        return ("pinch_click", 0.9)
+    if index and middle and ring and not pinky:
+        return ("three_finger", 0.9)
     if index and middle and not ring and not pinky:
         return ("two_finger_scroll", 0.9)
-    if not (middle or ring or pinky):
-        # only the index is extended (thumb state free)
-        if pinch < PINCH_JOIN_RATIO:
-            return ("pinch_click", 0.9)
+    if index and not middle and not ring and not pinky:
         return ("pointer", 0.9)
     if all(fingers):
         return ("open_palm", 0.9)
-    # fall back: closest pose by number of mismatches
-    best_name, best_err = "pointer", 5
-    for name in ("closed_fist", "volume_mode", "two_finger_scroll", "pointer", "open_palm"):
-        target = POSE_TABLE[name]
-        states = (thumb, index, middle, pinky)
-        err = sum(1 for a, b in zip(states, target) if a != b)
+    # fall back: closest pose by number of mismatches (thumb ignored)
+    best_name, best_err = "pointer", 4
+    for name in ("closed_fist", "three_finger", "two_finger_scroll", "pointer", "open_palm"):
+        err = sum(1 for a, b in zip(fingers, POSE_TABLE[name]) if a != b)
         if err < best_err:
             best_name, best_err = name, err
     return (best_name, 0.5)

@@ -1,6 +1,6 @@
 import pytest
 
-from app.vision.classify import classify, fingers_extended, pinch_distance
+from app.vision.classify import classify, fingers_extended, pinch_distance, pinch_ratio
 
 # Wrist at bottom center; finger landmarks spread upward when extended.
 WRIST = [0.5, 0.9, 0.0]
@@ -63,13 +63,21 @@ def test_two_finger_scroll():
     assert gesture == "two_finger_scroll"
 
 
-def test_volume_mode():
-    lm = hand(tips_y=[0.74, 0.72, 0.74, 0.76], refs_y=[0.68, 0.66, 0.68, 0.72],
-              thumb_tip=[0.35, 0.55], thumb_ref=[0.38, 0.70])
+def test_three_finger_volume():
+    # index, middle and ring extended, pinky curled -> three_finger (thumb ignored)
+    lm = hand(tips_y=[0.30, 0.28, 0.30, 0.74], refs_y=[0.55, 0.53, 0.55, 0.72])
     ext = fingers_extended(lm)
-    assert ext[0] and not ext[1] and not ext[2]
+    assert ext[1] and ext[2] and ext[3] and not ext[4]
     gesture, _ = classify(lm, ext)
-    assert gesture == "volume_mode"
+    assert gesture == "three_finger"
+
+
+def test_three_finger_ignores_thumb_completely():
+    # same three-finger pose with the thumb fully tucked: still volume
+    lm = hand(tips_y=[0.30, 0.28, 0.30, 0.74], refs_y=[0.55, 0.53, 0.55, 0.72],
+              thumb_tip=[0.48, 0.72], thumb_ref=[0.44, 0.70])
+    gesture, _ = classify(lm)
+    assert gesture == "three_finger"
 
 
 def test_fist_overrides_pointer_when_all_curled():
@@ -102,6 +110,32 @@ def test_pinch_with_closed_thumb_and_index_is_pinch_click():
     ext = fingers_extended(lm)
     gesture, _ = classify(lm, ext)
     assert gesture == "pinch_click"
+
+
+def test_fist_with_thumb_across_fingers_is_not_pinch():
+    # all four fingers curled, thumb tip tucked right across the curled
+    # index: the pinch ratio is tiny, but priority 1 (fist) must win
+    lm = hand(tips_y=[0.74, 0.72, 0.74, 0.76], refs_y=[0.68, 0.66, 0.68, 0.72],
+              thumb_tip=[0.53, 0.66], thumb_ref=[0.40, 0.70])
+    assert pinch_ratio(lm) < 0.30
+    gesture, _ = classify(lm)
+    assert gesture == "closed_fist"
+
+
+def test_natural_pinch_with_bent_index_is_pinch_click():
+    # a natural pinch: index reaching toward the thumb, other fingers curled
+    lm = hand(tips_y=[0.48, 0.70, 0.72, 0.74], refs_y=[0.56, 0.66, 0.68, 0.72],
+              thumb_tip=[0.52, 0.50], thumb_ref=[0.40, 0.70])
+    lm[8] = [0.55, 0.48, 0.0]  # index tip nearly touching the thumb tip
+    assert pinch_ratio(lm) < 0.30
+    gesture, _ = classify(lm)
+    assert gesture == "pinch_click"
+
+
+def test_classification_is_invariant_to_uniform_scaling():
+    lm = hand(tips_y=[0.30, 0.28, 0.30, 0.74], refs_y=[0.55, 0.53, 0.55, 0.72])
+    scaled = [[p[0] * 0.5, p[1] * 0.5, 0.0] for p in lm]
+    assert classify(lm)[0] == classify(scaled)[0] == "three_finger"
 
 
 def test_classification_is_invariant_to_hand_distance():
