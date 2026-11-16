@@ -46,7 +46,9 @@ class EmergencyHotkey:
         if self._thread_id:
             ctypes.windll.user32.PostThreadMessageW(self._thread_id, 0x0012, 0, 0)  # WM_QUIT
         if self._thread is not None:
-            self._thread.join(timeout=2.0)
+            # short join: daemon thread; Windows removes the process's keyboard
+            # hook on termination anyway, so do not stall Ctrl+C for it
+            self._thread.join(timeout=1.0)
 
     def _run(self) -> None:
         user32 = ctypes.windll.user32

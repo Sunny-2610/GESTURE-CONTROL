@@ -96,7 +96,9 @@ class VisionPipeline:
     def stop(self) -> None:
         self._stop.set()
         if self._thread is not None:
-            self._thread.join(timeout=3.0)
+            # short join: the thread is a daemon, so the OS reclaims it on exit;
+            # waiting longer only delays Ctrl+C when it is mid-inference
+            self._thread.join(timeout=1.0)
             self._thread = None
         self.camera.stop()
 
