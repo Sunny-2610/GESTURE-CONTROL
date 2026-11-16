@@ -29,7 +29,9 @@ def test_pointer_moves_cursor(engine):
     engine.dispatch("pointer", hand_landmarks((0.6, 0.5)), 0.5, settings)
     assert engine.input.last_xy is not None
     x1, _ = engine.input.last_xy
-    assert x1 < 960  # raw x grows leftwards (camera facing user), so cursor moves left
+    # dx is negated for the unmirrored frame: image x growing rightwards means
+    # the hand drifted left in real space, so the cursor must move left
+    assert x1 < 960
 
 
 def test_pinch_click_fires_once_with_cooldown(engine):
@@ -215,6 +217,41 @@ def test_pipeline_dispatches_only_when_active():
     pipeline._handle_control({**hand, "landmarks": hand_landmarks((0.6, 0.5))})
     assert pipeline.input_ctl.last_xy is not None
     assert events  # gesture-change events logged
+
+
+def test_handedness_label_swap_makes_control_hand_primary():
+    import numpy as np
+
+    from app.state.machine import ControllerMachine
+
+    machine = ControllerMachine()
+    pipeline = VisionPipeline(
+        machine=machine,
+        settings_store=_FakeStore(),  # cursor.control_hand == "right"
+        input_ctl=InputController(dry_run=True),
+        volume_ctl=VolumeController(dry_run=True),
+        emit=lambda e, d: None,
+    )
+    frame = np.zeros((72, 128, 3), dtype=np.uint8)
+    landmarks = [[[0.5, 0.5, 0.0]] * 21]
+
+    class _FakeCamera:
+        error = None
+
+        def read(self):
+            return frame
+
+    class _FakeLandmarker:
+        # raw landmarker output: user's right hand reported as "Left"
+        def detect(self, _frame, _ts):
+            return landmarks, [("Left", 0.95)]
+
+    pipeline.camera = _FakeCamera()
+    pipeline.landmarker = _FakeLandmarker()
+    pipeline._tick(0)
+    hand = pipeline.snapshot.hands[0]
+    assert hand["hand"] == "Right"  # swapped because the frame is unmirrored
+    assert hand["role"] == "primary"
 
 
 class _FakeStore:

@@ -88,7 +88,8 @@ class ControlEngine:
         self._pinch_down = False
 
     def _pointer(self, landmarks, settings: AppSettings) -> None:
-        tip = (1.0 - landmarks[8][0], landmarks[8][1])
+        # the frame is raw/unmirrored, so track image x directly
+        tip = (landmarks[8][0], landmarks[8][1])
         a = settings.cursor.smoothing
         if self._smoothed is None:
             self._smoothed = tip
@@ -99,7 +100,10 @@ class ControlEngine:
             self._cursor_prev = self._smoothed
             return
         sw, sh = self.input.screen_size()
-        dx = (self._smoothed[0] - self._cursor_prev[0]) * settings.cursor.sensitivity * sw
+        # image x grows opposite the hand's real direction (unmirrored frame):
+        # moving the hand right decreases image x, so negate dx to keep the
+        # cursor following the hand
+        dx = -(self._smoothed[0] - self._cursor_prev[0]) * settings.cursor.sensitivity * sw
         dy = (self._smoothed[1] - self._cursor_prev[1]) * settings.cursor.sensitivity * sh
         self._cursor_prev = self._smoothed
         self.input.move_relative(dx, dy)

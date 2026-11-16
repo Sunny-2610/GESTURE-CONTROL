@@ -80,6 +80,7 @@ class VisionPipeline:
         self._auto_disabled: bool = False
         self._auto_hold: bool = False
         self._last_cam_error: Optional[str] = None
+        self._hand_ignored_emitted: bool = False
         # all cv2.VideoCapture calls run on the vision thread via this queue
         self._cmd_q: "queue.Queue[tuple]" = queue.Queue()
         self._cmd_done = threading.Event()
@@ -168,6 +169,10 @@ class VisionPipeline:
             lm_hands, labels = self.landmarker.detect(frame, ts_ms)
             for i, lm in enumerate(lm_hands):
                 label, score = labels[i] if i < len(labels) else ("Right", 0.0)
+                # MediaPipe's handedness assumes a mirrored (selfie) image, but we
+                # feed it the raw unmirrored webcam frame, so the label is flipped
+                # and must be swapped back for role assignment to work.
+                label = "Left" if label.lower() == "right" else "Right"
                 ext = fingers_extended(lm)
                 gesture, _conf = classify(lm, ext)
                 hands.append(
@@ -223,10 +228,17 @@ class VisionPipeline:
                 self._last_gesture = gesture
             enabled = settings.gestures.model_dump()
             is_control_hand = hand["role"] == "primary" or hand_count == 1
-            if enabled.get(gesture, True) and is_control_hand:
-                self.engine.dispatch(
-                    gesture, hand["landmarks"], hand["pinch"], settings
-                )
+            if not is_control_hand:
+                # log once per "hand is not the control hand" stretch, not every frame
+                if not self._hand_ignored_emitted:
+                    self.emit("HAND IGNORED", "not control hand")
+                    self._hand_ignored_emitted = True
+            else:
+                self._hand_ignored_emitted = False
+                if enabled.get(gesture, True):
+                    self.engine.dispatch(
+                        gesture, hand["landmarks"], hand["pinch"], settings
+                    )
         elif state is ControllerState.HOLD or state is ControllerState.ARMED:
             self._reset_gesture_stability()
             self.engine.reset()

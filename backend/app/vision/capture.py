@@ -123,8 +123,9 @@ class HandLandmarker:
             hands.append([[p.x, p.y, p.z] for p in lm_list])
         for handed in result.handedness or []:
             if handed:
-                name = handed[0].category_name
-                labels.append(("Left" if name == "Right" else "Right", float(handed[0].score)))
+                # pass the raw MediaPipe label through; the vision pipeline
+                # applies the unmirrored-frame correction in one place
+                labels.append((handed[0].category_name, float(handed[0].score)))
         return hands, labels
 
 
