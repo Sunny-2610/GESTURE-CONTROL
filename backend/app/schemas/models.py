@@ -26,16 +26,22 @@ class ClickSettings(BaseModel):
     pinch_threshold: float = Field(default=0.3, ge=0.1, le=0.9)
     cooldown: float = Field(default=0.4, ge=0.1, le=2.0)
     double_click: bool = False
+    dwell_enabled: bool = False
+    dwell_ms: int = Field(default=1000, ge=500, le=3000)
 
 
 class ScrollSettings(BaseModel):
     speed: float = Field(default=1.0, ge=0.2, le=5.0)
-    dead_zone: float = Field(default=0.02, ge=0.0, le=0.1)
+    dead_zone: float = Field(default=0.04, ge=0.0, le=0.1)
 
 
 class VolumeSettings(BaseModel):
     sensitivity: float = Field(default=1.0, ge=0.1, le=3.0)
     smoothing: float = Field(default=0.6, ge=0.0, le=0.95)
+
+
+class SwipeSettings(BaseModel):
+    enabled: bool = True
 
 
 class SafetySettings(BaseModel):
@@ -50,9 +56,9 @@ class InputSettings(BaseModel):
 
 class GestureToggles(BaseModel):
     closed_fist: bool = True
-    volume_mode: bool = True
-    two_finger_scroll: bool = True
     pinch_click: bool = True
+    three_finger: bool = True
+    two_finger_scroll: bool = True
     pointer: bool = True
     open_palm: bool = True
 
@@ -65,6 +71,7 @@ class AppSettings(BaseModel):
     safety: SafetySettings = Field(default_factory=SafetySettings)
     input: InputSettings = Field(default_factory=InputSettings)
     gestures: GestureToggles = Field(default_factory=GestureToggles)
+    swipes: SwipeSettings = Field(default_factory=SwipeSettings)
 
 
 class ArmChecks(BaseModel):
@@ -96,6 +103,7 @@ class GestureInfo(BaseModel):
     title: str
     pose: str
     action: str
+    motion: str = ""
     enabled: bool
 
 
@@ -162,6 +170,11 @@ class WsHand(BaseModel):
     cursor: Optional[List[int]] = None
 
 
+class EngineToast(BaseModel):
+    text: str
+    ts: float
+
+
 class WsFrameMessage(BaseModel):
     type: Literal["frame"] = "frame"
     ts: float
@@ -169,6 +182,14 @@ class WsFrameMessage(BaseModel):
     fps: Optional[float] = None
     proc_ms: Optional[float] = None
     hands: List[WsHand] = Field(default_factory=list)
+    # ControlEngine.status() feedback
+    mode: str = "idle"
+    volume: Optional[float] = None
+    volume_direction: int = 0
+    scroll_velocity: float = 0.0
+    dwell_progress: float = 0.0
+    volume_anchor: Optional[float] = None
+    toast: Optional[EngineToast] = None
 
 
 class WsStateMessage(BaseModel):

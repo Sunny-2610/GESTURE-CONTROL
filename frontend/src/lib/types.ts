@@ -53,6 +53,7 @@ export interface GestureInfo {
   title: string;
   pose: string;
   action: string;
+  motion: string;
   enabled: boolean;
 }
 
@@ -63,7 +64,13 @@ export interface Settings {
     active_region_margin: number;
     control_hand: "left" | "right";
   };
-  click: { pinch_threshold: number; cooldown: number; double_click: boolean };
+  click: {
+    pinch_threshold: number;
+    cooldown: number;
+    double_click: boolean;
+    dwell_enabled: boolean;
+    dwell_ms: number;
+  };
   scroll: { speed: number; dead_zone: number };
   volume: { sensitivity: number; smoothing: number };
   safety: {
@@ -73,6 +80,7 @@ export interface Settings {
   };
   input: { mode: "preview" | "live" };
   gestures: Record<string, boolean>;
+  swipes: { enabled: boolean };
 }
 
 export interface Landmark extends Array<number> {}
@@ -87,13 +95,28 @@ export interface WsHand {
   cursor: number[] | null;
 }
 
-export interface WsFrame {
-  type: "frame";
+export interface EngineToast {
+  text: string;
   ts: number;
-  state: ControllerState;
-  fps: number | null;
-  proc_ms: number | null;
-  hands: WsHand[];
+}
+
+export type EngineMode =
+  | "idle"
+  | "cursor"
+  | "click"
+  | "scroll"
+  | "volume"
+  | "swipe"
+  | "paused";
+
+export interface EngineStatus {
+  mode: EngineMode;
+  volume: number | null;
+  volume_direction: number;
+  scroll_velocity: number;
+  dwell_progress: number;
+  volume_anchor: number | null;
+  toast: EngineToast | null;
 }
 
 export interface WsFrameMessage {
@@ -103,6 +126,13 @@ export interface WsFrameMessage {
   fps: number | null;
   proc_ms: number | null;
   hands: WsHand[];
+  mode: EngineMode;
+  volume: number | null;
+  volume_direction: number;
+  scroll_velocity: number;
+  dwell_progress: number;
+  volume_anchor: number | null;
+  toast: EngineToast | null;
 }
 
 export interface WsStateMessage {

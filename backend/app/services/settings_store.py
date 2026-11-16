@@ -83,12 +83,17 @@ class SettingsStore:
 
 
 def _migrate(raw: Dict) -> Dict:
-    """Upgrade legacy absolute pinch thresholds to palm-size ratios."""
+    """Upgrade legacy settings: absolute pinch thresholds -> palm-size ratios,
+    and the old volume_mode gesture key -> three_finger."""
     click = raw.get("click")
     if isinstance(click, dict):
         threshold = click.get("pinch_threshold")
         if isinstance(threshold, (int, float)) and threshold < 0.15:
             click["pinch_threshold"] = 0.3
+    gestures = raw.get("gestures")
+    if isinstance(gestures, dict) and "volume_mode" in gestures:
+        legacy = gestures.pop("volume_mode")
+        gestures.setdefault("three_finger", legacy)
     return raw
 
 

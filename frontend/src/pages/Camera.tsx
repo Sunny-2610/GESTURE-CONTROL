@@ -101,7 +101,7 @@ function Inspector({
 }
 
 export function CameraPage() {
-  const { status, state, hands, procMs, detectedGesture, confidence, cameraOpen } = useAppData();
+  const { status, state, hands, procMs, detectedGesture, confidence, engine, cameraOpen } = useAppData();
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [showRegion, setShowRegion] = useState(true);
 
@@ -119,6 +119,7 @@ export function CameraPage() {
           gesture={detectedGesture}
           confidence={confidence}
           cursor={null}
+          engine={engine}
           showActiveRegion={showRegion}
           emptyLabel={busy ? "Camera busy" : "Camera off"}
           onEmptyAction={

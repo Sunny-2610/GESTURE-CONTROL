@@ -10,15 +10,18 @@ const CONNECTIONS: [number, number][] = [
   [0, 17],
 ];
 const FINGERTIPS = [4, 8, 12, 16, 20];
+const INDEX_TIP = 8;
 
 export function SkeletonCanvas({
   hands,
   mirrored,
   color,
+  dwell = 0,
 }: {
   hands: WsHand[];
   mirrored: boolean;
   color: string;
+  dwell?: number;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
 
@@ -58,6 +61,28 @@ export function SkeletonCanvas({
         const size = FINGERTIPS.includes(i) ? 6 : 5;
         ctx.fillRect(x - size / 2, y - size / 2, size, size);
       }
+    }
+    // dwell-click progress ring around the index fingertip
+    if (dwell > 0 && hands.length > 0) {
+      const hand = hands.find((hd) => hd.role === "primary") ?? hands[0];
+      const [tip] = hand.landmarks[INDEX_TIP];
+      const [, tipY] = hand.landmarks[INDEX_TIP];
+      const cx = mirrored ? (1 - tip) * w : tip * w;
+      const cy = tipY * h;
+      const r = 16;
+      ctx.save();
+      ctx.lineWidth = 2;
+      // faint full ring
+      ctx.globalAlpha = 0.3;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+      // progress arc (starts at the top, clockwise)
+      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, dwell));
+      ctx.stroke();
+      ctx.restore();
     }
   });
 

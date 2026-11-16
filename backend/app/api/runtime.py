@@ -95,11 +95,14 @@ class Runtime:
 
     def system_checks(self) -> SystemChecks:
         cam_open = bool(self.pipeline and self.pipeline.camera.open)
+        input_ok = self.input_ctl.available
         checks = SystemChecks(
             camera_access="OK" if (cam_open or self._camera_probe_ok) else "FAIL",
             model_loaded="OK" if (self.pipeline is None or self.pipeline.landmarker.available) else "FAIL",
-            input_backend="OK" if self.input_ctl.available else "FAIL",
-            volume_backend="OK" if (self.volume_ctl.available or self.volume_ctl.dry_run) else "FAIL",
+            input_backend="OK" if input_ok else "FAIL",
+            # volume now goes through the same media-key path as all input,
+            # so the "volume backend" is the input backend
+            volume_backend="OK" if input_ok else "FAIL",
         )
         return checks
 

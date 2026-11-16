@@ -60,3 +60,16 @@ def test_gesture_toggles_roundtrip(store):
     store.save()
     reloaded = SettingsStore(path=store.path)
     assert reloaded.current().gestures.closed_fist is False
+
+
+def test_migration_maps_volume_mode_to_three_finger(store, tmp_path):
+    store.path.write_text(
+        '{"gestures": {"volume_mode": false, "pointer": true}}', encoding="utf-8"
+    )
+    reloaded = SettingsStore(path=store.path)
+    assert reloaded.current().gestures.three_finger is False
+    assert reloaded.current().gestures.pointer is True
+    reloaded.save()
+    raw = __import__("json").loads(reloaded.path.read_text(encoding="utf-8"))
+    assert "volume_mode" not in raw["gestures"]
+    assert raw["gestures"]["three_finger"] is False

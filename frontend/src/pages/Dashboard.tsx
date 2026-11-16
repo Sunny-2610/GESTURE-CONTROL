@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { Viewfinder } from "../components/viewfinder";
 import { StateBlock, Reading, EventLog } from "../components/readings";
 import { Button, Sheet, SegmentedControl } from "../components/controls";
 import { Shortcut } from "../components/controls/Keycap";
+import { GestureLegend } from "../components/gestures";
 import { useAppData } from "../hooks/AppContext";
 import { useInputMode } from "../hooks/useInputMode";
 import { api } from "../lib/api";
@@ -107,7 +109,10 @@ function ArmingSheet({ open, onClose, onArmed }: { open: boolean; onClose: () =>
 }
 
 export function Dashboard() {
-  const { status, state, hands, fps, events, detectedGesture, confidence, cursor, cameraOpen } = useAppData();
+  const { status, state, hands, fps, events, detectedGesture, confidence, cursor, engine, cameraOpen } = useAppData();
+  const [cheatOpen, setCheatOpen] = useState(false);
+  const palmStart = useRef<number | null>(null);
+  const [, tick] = useState(0);
   const inputMode = useInputMode();
   const [armingOpen, setArmingOpen] = useState(false);
 
@@ -125,6 +130,31 @@ export function Dashboard() {
     state === "OFF" ? "Start control" : state === "ACTIVE" ? "Pause" : state === "HOLD" ? "Resume" : "Start control";
   const primaryDisabled = state === "HALT" || state === "ARMED";
 
+  // cheat sheet: hold open palm for 2 s to open, other gesture or Esc to close
+  useEffect(() => {
+    const id = window.setInterval(() => tick((n) => n + 1), 200);
+    return () => window.clearInterval(id);
+  }, []);
+  useEffect(() => {
+    if (detectedGesture === "open_palm") {
+      if (palmStart.current === null) {
+        palmStart.current = performance.now();
+      } else if (!cheatOpen && performance.now() - palmStart.current >= 2000) {
+        setCheatOpen(true);
+      }
+    } else {
+      palmStart.current = null;
+      if (cheatOpen) setCheatOpen(false);
+    }
+  }, [detectedGesture, cheatOpen]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCheatOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
     <div className="grid grid-cols-3 divide-x divide-ink border-b border-ink">
       <div className="col-span-2 p-8">
@@ -136,6 +166,7 @@ export function Dashboard() {
           gesture={detectedGesture}
           confidence={confidence}
           cursor={cursor}
+          engine={engine}
           emptyLabel={status?.camera.busy ? "Camera busy" : "Camera off"}
           onEmptyAction={
             cameraOpen ? undefined : (
@@ -149,7 +180,10 @@ export function Dashboard() {
           <p className="mt-4 max-w-[70ch] font-body text-ink-muted">
             {inputMode.mode === "live"
               ? "Live input is enabled, but control is off. Press Start control and confirm the three checks to dispatch gesture actions."
-              : "No actions are sent until control is started."}
+              : "No actions are sent until control is started."}{" "}
+            <Link to="/tutorial" className="font-semibold text-ink underline">
+              Learn the gestures
+            </Link>
           </p>
         )}
       </div>
@@ -200,6 +234,27 @@ export function Dashboard() {
       </div>
 
       <ArmingSheet open={armingOpen} onClose={() => setArmingOpen(false)} onArmed={() => undefined} />
+
+      {cheatOpen && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-paper/95 p-8"
+          role="dialog"
+          aria-label="Gesture cheat sheet"
+        >
+          <div className="text-center">
+            <p className="font-label uppercase tracking-[0.06em] text-ink-muted">
+              Cheat sheet
+            </p>
+            <h2 className="mt-1 font-heading text-ink">
+              Every pose, at a glance
+            </h2>
+          </div>
+          <GestureLegend color="#1A1916" />
+          <p className="font-label uppercase tracking-[0.06em] text-ink-muted">
+            Make any other gesture or press Esc to close
+          </p>
+        </div>
+      )}
     </div>
   );
 }

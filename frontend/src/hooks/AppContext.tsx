@@ -10,7 +10,13 @@ import {
 import type { ReactNode } from "react";
 import { api } from "../lib/api";
 import { useEventLog, useGestureSocket, useStatus } from "../hooks/useBackend";
-import type { ControllerState, Status, WsMessage, WsHand } from "../lib/types";
+import type {
+  ControllerState,
+  EngineStatus,
+  Status,
+  WsMessage,
+  WsHand,
+} from "../lib/types";
 
 interface AppData {
   status: Status | null;
@@ -23,9 +29,20 @@ interface AppData {
   detectedGesture: string | null;
   confidence: number | null;
   cursor: [number, number] | null;
+  engine: EngineStatus;
   cameraOpen: boolean;
   refreshStatus: () => void;
 }
+
+const EMPTY_ENGINE: EngineStatus = {
+  mode: "idle",
+  volume: null,
+  volume_direction: 0,
+  scroll_velocity: 0,
+  dwell_progress: 0,
+  volume_anchor: null,
+  toast: null,
+};
 
 const Ctx = createContext<AppData | null>(null);
 
@@ -39,6 +56,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [detected, setDetected] = useState<string | null>(null);
   const [confidence, setConfidence] = useState<number | null>(null);
   const [cursor, setCursor] = useState<[number, number] | null>(null);
+  const [engine, setEngine] = useState<EngineStatus>(EMPTY_ENGINE);
   const rafRef = useRef(0);
 
   // load initial event log
@@ -61,6 +79,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setCursor(
             primary?.cursor ? ([primary.cursor[0], primary.cursor[1]] as [number, number]) : null,
           );
+          setEngine({
+            mode: m.mode ?? "idle",
+            volume: m.volume ?? null,
+            volume_direction: m.volume_direction ?? 0,
+            scroll_velocity: m.scroll_velocity ?? 0,
+            dwell_progress: m.dwell_progress ?? 0,
+            volume_anchor: m.volume_anchor ?? null,
+            toast: m.toast ?? null,
+          });
         });
       } else if (m.type === "state") {
         setState(m.state);
@@ -90,10 +117,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       detectedGesture: detected,
       confidence,
       cursor,
+      engine,
       cameraOpen: status?.camera.open ?? false,
       refreshStatus: refresh,
     }),
-    [status, connected, state, hands, fps, procMs, events, detected, confidence, cursor, refresh],
+    [status, connected, state, hands, fps, procMs, events, detected, confidence, cursor, engine, refresh],
   );
 
   void error;

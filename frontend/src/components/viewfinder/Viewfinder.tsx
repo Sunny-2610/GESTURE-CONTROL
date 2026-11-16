@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import type { ControllerState, WsHand } from "../../lib/types";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ControllerState, EngineStatus, WsHand } from "../../lib/types";
 import { SkeletonCanvas } from "./SkeletonCanvas";
 import { ActiveRegion, CornerBrackets, EmptyState, OverlayChip } from "./Parts";
 interface ViewfinderProps {
@@ -10,9 +10,42 @@ interface ViewfinderProps {
   gesture: string | null;
   confidence: number | null;
   cursor: [number, number] | null;
+  engine?: EngineStatus;
   showActiveRegion?: boolean;
   emptyLabel?: string;
   onEmptyAction?: React.ReactNode;
+}
+
+/** Toast that fades about 1 s after a new (text, ts) pair arrives. */
+function ActionToast({ toast }: { toast: EngineStatus["toast"] }) {
+  const [visible, setVisible] = useState(false);
+  const lastTs = useRef(0);
+  const reduced = useMemo(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true,
+    [],
+  );
+
+  useEffect(() => {
+    if (!toast || toast.ts === lastTs.current) return;
+    lastTs.current = toast.ts;
+    setVisible(true);
+    const t = window.setTimeout(() => setVisible(false), 1000);
+    return () => window.clearTimeout(t);
+  }, [toast]);
+
+  if (!toast || !visible) return null;
+  return (
+    <div
+      role="status"
+      className={`absolute bottom-16 left-1/2 -translate-x-1/2 bg-ink px-3 py-1.5 font-mono text-[14px] uppercase tracking-widest text-paper ${
+        reduced ? "" : "transition-opacity duration-300"
+      }`}
+    >
+      {toast.text}
+    </div>
+  );
 }
 
 export function Viewfinder({
@@ -23,6 +56,7 @@ export function Viewfinder({
   gesture,
   confidence,
   cursor,
+  engine,
   showActiveRegion = false,
   emptyLabel = "Camera off",
   onEmptyAction,
@@ -64,6 +98,28 @@ export function Viewfinder({
       : "Preview only";
   const handMissing = cameraOpen && handLost && (state === "ACTIVE" || state === "HOLD");
 
+  // large mode chip text
+  const modeText = controlling && engine
+    ? engine.mode === "cursor"
+      ? "CURSOR"
+      : engine.mode === "click"
+        ? "CLICK"
+        : engine.mode === "scroll"
+          ? "SCROLL"
+          : engine.mode === "volume"
+            ? engine.volume != null
+              ? `VOLUME ${Math.round(engine.volume)}%`
+              : "VOLUME"
+            : engine.mode === "swipe"
+              ? "SWIPE"
+              : engine.mode === "paused"
+                ? "PAUSED"
+                : null
+    : null;
+
+  const scrollSpeed = Math.min(1, Math.abs(engine?.scroll_velocity ?? 0) / 12);
+  const scrollArrow = controlling && engine?.mode === "scroll" && scrollSpeed > 0.04;
+
   return (
     <div
       className="relative w-full overflow-hidden border border-ink bg-paper-2"
@@ -82,7 +138,14 @@ export function Viewfinder({
           onLoad={() => setLoaded(true)}
         />
       )}
-      {cameraOpen && <SkeletonCanvas hands={hands} mirrored color={skeletonColor} />}
+      {cameraOpen && (
+        <SkeletonCanvas
+          hands={hands}
+          mirrored
+          color={skeletonColor}
+          dwell={controlling ? engine?.dwell_progress ?? 0 : 0}
+        />
+      )}
       {showActiveRegion && cameraOpen && <ActiveRegion />}
 
       {cameraOpen && (
@@ -100,6 +163,67 @@ export function Viewfinder({
               Cursor {cursor[0]} / {cursor[1]}
             </OverlayChip>
           )}
+
+          {modeText && (
+            <div
+              className="absolute left-1/2 top-3 -translate-x-1/2 bg-ink px-4 py-1.5 font-mono text-[15px] uppercase tracking-[0.2em] text-paper"
+              aria-live="polite"
+            >
+              {modeText}
+            </div>
+          )}
+
+          {/* vertical volume bar, only in volume mode */}
+          {controlling && engine?.mode === "volume" && (
+            <div className="absolute right-10 top-1/2 flex h-1/2 -translate-y-1/2 items-stretch gap-2">
+              <div className="relative w-4 border border-ink bg-paper/85">
+                <div
+                  className="absolute bottom-0 left-0 right-0 bg-ink"
+                  style={{ height: `${Math.max(0, Math.min(100, engine.volume ?? 0))}%` }}
+                />
+                {engine.volume_anchor != null && (
+                  <div
+                    className="absolute left-[-6px] right-[-6px] h-[2px] bg-signal-text"
+                    style={{ top: `${Math.max(0, Math.min(100, engine.volume_anchor * 100))}%` }}
+                    aria-hidden
+                  />
+                )}
+              </div>
+              <span className="self-center font-mono text-[13px] font-semibold text-ink">
+                {engine.volume != null ? `${Math.round(engine.volume)}%` : "—"}
+              </span>
+            </div>
+          )}
+
+          {/* scroll arrow, size follows velocity */}
+          {scrollArrow && (
+            <div className="absolute right-10 top-1/2 -translate-y-1/2">
+              <svg
+                width={24}
+                height={16 + 48 * scrollSpeed}
+                viewBox="0 0 24 64"
+                aria-hidden
+                className="text-ink"
+              >
+                <g
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  transform={
+                    (engine?.scroll_velocity ?? 0) < 0 ? undefined : "rotate(180 12 32)"
+                  }
+                >
+                  <line x1="12" y1="10" x2="12" y2={54 * (0.4 + 0.6 * scrollSpeed) + 6} />
+                  <path d={`M5 ${8 + 44 * scrollSpeed} L12 ${2 + 50 * scrollSpeed} L19 ${8 + 44 * scrollSpeed}`} />
+                </g>
+              </svg>
+            </div>
+          )}
+
+          <ActionToast toast={engine?.toast ?? null} />
+
           {handMissing && (
             <div className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center">
               <span className="inline-block bg-ink px-3 py-1 text-xs uppercase tracking-widest text-paper">

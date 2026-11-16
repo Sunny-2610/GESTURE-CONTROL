@@ -1,4 +1,4 @@
-# AI Hand Gesture Controller
+﻿# AI Hand Gesture Controller
 
 Control a Windows computer with webcam hand gestures. Safety-gated: input is
 dry-run by default, control must be armed through three explicit checks, and an
@@ -55,9 +55,32 @@ $env:GESTURE_LIVE = '0'   # force preview
 
 | # | Pose | Action |
 |---|---|---|
-| 1 | Closed fist | Rest pose — all actions stop |
-| 2 | Volume mode (thumb out) | Vertical hand movement sets master volume |
-| 3 | Two-finger scroll | Vertical movement scrolls |
-| 4 | Pinch click | Single click per pinch |
-| 5 | Pointer (index only) | Moves the cursor |
-| 6 | Open palm | Neutral — nothing dispatched |
+| 1 | Closed fist (all fingers curled, thumb tucked) | Pause - all actions stop while held |
+| 2 | Pinch click (thumb tip to index tip) | One mouse click per pinch (with hysteresis + cooldown) |
+| 3 | Three-finger volume (index+middle+ring up) | Media keys: hand up = louder, down = quieter |
+| 4 | Two-finger scroll (index+middle in a V) | Joystick scroll: farther from the anchor scrolls faster |
+| 5 | Pointer (index only) | Moves the cursor; optional dwell click |
+| 6 | Open palm (all five up) | Swipe left/right for browser back/forward |
+
+Notes:
+
+- Volume and scrolling are **relative**: they measure hand movement from where
+  the pose started (its anchor). Return to the anchor to stop.
+- Volume sends `volume up` / `volume down` media keys and shows an *estimated*
+  percent (starting from 50); real feedback comes from your speaker.
+- The tutorial page (`/#/tutorial`) always forces preview mode and restores
+  the previous input mode on exit.
+
+## Tunable thresholds (Settings page or `backend/app/services/control_engine.py`)
+
+| Threshold | Default | Meaning |
+|---|---|---|
+| Pinch join ratio | 0.30 | thumb-index distance (× palm size) that counts as a pinch |
+| Click cooldown | 0.4 s | minimum time between pinch clicks |
+| Dwell radius / re-arm / time | 0.015 / 0.04 / 1.0 s | hold-still click ring (off by default) |
+| Scroll dead zone | 0.04 | anchor offset below which nothing scrolls |
+| Scroll range / rate cap | 0.15 / 12 notches/s | offset that reaches max speed |
+| Volume dead zone | 0.03 | anchor offset below which nothing happens |
+| Volume range / rate cap | 0.15 / 12 keys/s | offset that reaches max speed |
+| Swipe travel / window / speed | 0.25 / 0.4 s / 0.6 /s | one open-palm swipe; cooldown 1.0 s |
+| Hand-lost auto-hold | 5.0 s | ACTIVE auto-holds when no hand is seen |
