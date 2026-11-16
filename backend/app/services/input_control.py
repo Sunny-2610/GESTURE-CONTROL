@@ -1,12 +1,13 @@
-"""OS input dispatch (mouse, scroll) with a dry-run default for safety.
+"""OS input dispatch (mouse, click, scroll, keys) with a dry-run default.
 
-Live mode is opt-in through the environment variable GESTURE_LIVE=1. Every
-method is a no-op unless the caller has verified the controller is ACTIVE.
+Live mode is opt-in; every method is a no-op unless the caller has verified
+the controller is ACTIVE. Failures are reported once (de-duplicated) through
+the on_error callback instead of being swallowed.
 """
 from __future__ import annotations
 
 import threading
-from typing import Optional
+from typing import Callable, Optional
 
 try:
     import pyautogui
@@ -23,14 +24,16 @@ DEFAULT_SCREEN = (1920, 1080)
 
 
 class InputController:
-    """Dispatches mouse actions. dry_run=True records intents without touching the OS."""
+    """Dispatches mouse and key actions. dry_run=True records intents without touching the OS."""
 
     def __init__(self, dry_run: bool = True) -> None:
         self.dry_run = dry_run or not _PYAUTOGUI_OK
         self.available = _PYAUTOGUI_OK
         self.last_action: str = ""
+        self.on_error: Optional[Callable[[str], None]] = None
         self._lock = threading.Lock()
         self._last_xy: Optional[tuple] = None
+        self._error_reported = False
 
     @property
     def last_xy(self) -> Optional[tuple]:
@@ -39,6 +42,18 @@ class InputController:
     def set_dry_run(self, dry_run: bool) -> None:
         with self._lock:
             self.dry_run = bool(dry_run) or not _PYAUTOGUI_OK
+
+    def _report_error(self, message: str) -> None:
+        """Report an input failure once per failure streak."""
+        if self._error_reported:
+            return
+        self._error_reported = True
+        self.last_action = f"input error: {message}"
+        if self.on_error is not None:
+            try:
+                self.on_error(message)
+            except Exception:
+                pass
 
     def screen_size(self) -> tuple:
         if not self.dry_run:
@@ -89,6 +104,7 @@ class InputController:
                 pyautogui.click(_pause=False)
 
     def scroll(self, amount: int) -> None:
+        """Scroll by wheel delta units (Windows: 120 units = 1 notch)."""
         with self._lock:
             self.last_action = f"scroll {amount}"
             if self.dry_run:
@@ -96,52 +112,84 @@ class InputController:
             if amount:
                 pyautogui.scroll(int(amount), _pause=False)
 
+    def press_key(self, name: str, times: int = 1) -> None:
+        """Press a named key (e.g. "volumeup", "nexttrack") one or more times."""
+        with self._lock:
+            self.last_action = f"key {name} x{max(1, int(times))}"
+            if self.dry_run:
+                return
+            try:
+                for _ in range(max(1, int(times))):
+                    pyautogui.press(name, _pause=False)
+                self._error_reported = False
+            except Exception as exc:
+                self._report_error(f"key {name}: {str(exc)[:80]}")
+
+    def press_hotkey(self, *keys: str) -> None:
+        """Press a key combination, e.g. press_hotkey("alt", "right")."""
+        with self._lock:
+            combo = "+".join(keys)
+            self.last_action = f"hotkey {combo}"
+            if self.dry_run:
+                return
+            try:
+                pyautogui.hotkey(*keys, _pause=False)
+                self._error_reported = False
+            except Exception as exc:
+                self._report_error(f"hotkey {combo}: {str(exc)[:80]}")
+
 
 class VolumeController:
-    """Master output volume through pycaw; dry-run keeps a local percent."""
+    """Master volume via OS media keys, tracking an ESTIMATED percent.
+
+    Media keys give no absolute level feedback, so `percent` is only a guess:
+    it starts at 50% and moves 2% per press, clamped to 0-100. The real system
+    volume may differ at any time; the estimate exists purely for UI feedback.
+    Nothing touches the OS in Preview (dry-run).
+    """
+
+    PERCENT_STEP = 2.0
 
     def __init__(self, dry_run: bool = True) -> None:
-        self.dry_run = dry_run
-        self.available = False
-        self._volume = None
-        self._local_percent: float = 50.0
-        if not dry_run:
-            self._init_backend()
-
-    def _init_backend(self) -> None:
-        try:
-            from ctypes import POINTER, cast
-
-            from comtypes import CLSCTX_ALL
-            from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
-
-            device = AudioUtilities.GetSpeakers()
-            interface = device.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-            self._volume = cast(interface, POINTER(IAudioEndpointVolume))
-            self.available = True
-        except Exception:  # pragma: no cover - depends on audio hardware
-            self.available = False
+        self.dry_run = dry_run or not _PYAUTOGUI_OK
+        self.available = _PYAUTOGUI_OK
+        self.last_action: str = ""
+        self.on_error: Optional[Callable[[str], None]] = None
+        self._estimated_percent = 50.0
+        self._error_reported = False
 
     def set_dry_run(self, dry_run: bool) -> None:
-        self.dry_run = dry_run
-        if not dry_run and self._volume is None:
-            self._init_backend()
+        self.dry_run = bool(dry_run) or not _PYAUTOGUI_OK
 
     def get_percent(self) -> float:
-        if self._volume is not None:
-            try:
-                return round(self._volume.GetMasterVolumeLevelScalar() * 100.0, 1)
-            except Exception:
-                pass
-        return self._local_percent
+        """ESTIMATED volume percent (see class docstring)."""
+        return self._estimated_percent
 
     def set_percent(self, percent: float) -> float:
-        percent = max(0.0, min(100.0, percent))
-        if self._volume is not None:
-            try:
-                self._volume.SetMasterVolumeLevelScalar(percent / 100.0, None)
-                return round(self._volume.GetMasterVolumeLevelScalar() * 100.0, 1)
-            except Exception:
-                pass
-        self._local_percent = percent
-        return percent
+        """Move the estimate directly (kept for tests and manual correction)."""
+        self._estimated_percent = max(0.0, min(100.0, float(percent)))
+        return self._estimated_percent
+
+    def press_key(self, name: str) -> None:
+        """Send a volume media key ("volumeup" / "volumedown") to the OS."""
+        if name == "volumeup":
+            self._estimated_percent = min(100.0, self._estimated_percent + self.PERCENT_STEP)
+        elif name == "volumedown":
+            self._estimated_percent = max(0.0, self._estimated_percent - self.PERCENT_STEP)
+        else:
+            return
+        self.last_action = f"volume {name} ~{int(self._estimated_percent)}%"
+        if self.dry_run:
+            return
+        try:
+            pyautogui.press(name, _pause=False)
+            self._error_reported = False
+        except Exception as exc:
+            if not self._error_reported:
+                self._error_reported = True
+                self.last_action = f"input error: volume {name}"
+                if self.on_error is not None:
+                    try:
+                        self.on_error(f"volume key {name}: {str(exc)[:80]}")
+                    except Exception:
+                        pass
