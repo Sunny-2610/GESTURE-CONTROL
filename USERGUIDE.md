@@ -49,11 +49,12 @@ desk, with nothing unsaved.
 
 ## 4. The screen
 
-- **Top bar** — `01 Dashboard · 02 Camera · 03 Gestures · 04 Settings · 05 About`,
+- **Top bar** — `01 Dashboard · 02 Tutorial · 03 Camera · 04 Gestures · 05 Settings · 06 About`,
   plus the orange **EMERGENCY STOP** button (always visible, on every page).
 - **Status line** (bottom) — link, camera, resolution, FPS, latency.
 - **Dashboard** — the live viewfinder with your hand skeleton and the big
-  CONTROL state word.
+  CONTROL state word. Hold an **open palm** for 2 s to open the gesture
+  cheat-sheet overlay (any other gesture or `Esc` closes it).
 
 ### Controller states
 
@@ -85,20 +86,28 @@ wins; only one action happens at a time.
 
 | Priority | Gesture (pose) | What it does |
 |---|---|---|
-| 1 | **Closed fist** — all fingers curled | Rest. Everything stops while held. |
-| 2 | **Volume mode** — thumb out, fingers curled | Move hand up = louder, down = quieter. |
-| 3 | **Two-finger scroll** — index + middle up | Move hand up/down to scroll the page. |
-| 4 | **Pinch click** — thumb tip touches index tip | One mouse click per pinch. |
-| 5 | **Pointer** — index finger only | Moves the cursor. |
-| 6 | **Open palm** — all five fingers up | Neutral. Nothing happens. |
+| 1 | **Closed fist** — all four fingers curled, thumb tucked | Pause. Everything stops while held. |
+| 2 | **Pinch click** — thumb tip touches index tip | One mouse click per pinch. |
+| 3 | **Three-finger volume** — index + middle + ring up, pinky curled | Media keys: hand up = louder, down = quieter. A vertical bar with your start position appears in the viewfinder. |
+| 4 | **Two-finger scroll** — index + middle up in a V | Joystick scroll: move up/down from where you started; farther scrolls faster. An arrow in the viewfinder shows direction and speed. |
+| 5 | **Pointer** — index finger only | Moves the cursor. Optional dwell-click: hold the cursor still (Settings -> Click -> Dwell) and a ring fills around your fingertip, then clicks. |
+| 6 | **Open palm** — all five fingers up | Swipe left/right for browser back / forward. One swipe per motion. |
+
+While control is ACTIVE, the viewfinder shows a large mode chip (`CURSOR`,
+`CLICK`, `SCROLL`, `VOLUME 42%`, `SWIPE`, `PAUSED`) and short action toasts
+("Click", "Back", "Forward", "Volume 42%", "Paused") fade after about a second.
 
 Tips:
 
 - Curl the unused fingers clearly — half-extended fingers confuse the classifier.
+- The thumb is ignored for pose classification (only its pinch distance counts),
+  so a relaxed thumb will not change the gesture.
 - Make a fist or open palm to "let go" before switching gestures.
 - Small, slow movements work best at first.
 - The pinch threshold is a fraction of your palm size, so it keeps working when
   you move closer to or further from the camera.
+- Scroll and volume measure how far your hand moves **from where the pose
+  started** — return to the start position to stop scrolling/changing volume.
 
 ### Emergency stop
 
@@ -117,35 +126,48 @@ Tips:
 
 ## 7. Pages
 
-- **02 Camera** — inspect tracking: handedness, confidence, finger-state bars,
+- **02 Tutorial** — a six-step guided practice run. It always forces preview
+  mode (nothing is ever dispatched) and restores your previous input mode when
+  you leave, even if you close the tab. Each step advances when you hold the
+  pose for half a second; a Skip button finishes early.
+- **03 Camera** — inspect tracking: handedness, confidence, finger-state bars,
   landmark table, skeleton and active-region toggles, processing time.
-- **03 Gestures** — the reference manual. Toggle any gesture on/off with the
-  switch on its card; click a card for details. Detected gesture's cell inverts.
-- **04 Settings** — cursor sensitivity/smoothing, click threshold/cooldown,
-  scroll speed, volume sensitivity, safety timers. Values apply live after
-  **SAVE**; changed rows get a left bar until saved.
-- **05 About** — version info and a system check (camera, model, input, volume).
+- **04 Gestures** — the reference manual. Toggle any gesture on/off with the
+  switch on its card; click a card for a large drawing and a 3-step how-to.
+  Detected gesture's cell inverts.
+- **05 Settings** — cursor sensitivity/smoothing, click threshold/cooldown and
+  dwell click, scroll speed/dead zone, volume sensitivity, swipe on/off, safety
+  timers. Values apply live after **SAVE**; changed rows get a left bar until
+  saved.
+- **06 About** — version info and a system check (camera, model, input, volume).
 
 ## 8. Recommended first session (5 minutes)
 
-1. Run in dry-run (default), start the camera, arm control.
-2. Hold up your **pointer** hand; watch `CURSOR x / y` chip move.
-3. Pinch a few times — see `PINCH -> CLICK` events in the log.
-4. Try two-finger scroll and volume mode.
-5. Press **EMERGENCY STOP** once, then **RE-ARM**, so you know the drill.
-6. Tune Settings (sensitivity, pinch threshold) to your hand.
-7. Set `Settings -> Safety -> Input mode -> Live` and repeat briefly for real.
+1. Open **02 Tutorial** and run through the six steps — it is always preview
+   only, so you can practice freely.
+2. Run in dry-run (default), start the camera, arm control.
+3. Hold up your **pointer** hand; watch `CURSOR x / y` chip move.
+4. Pinch a few times — see `PINCH -> CLICK` events and the "Click" toast.
+5. Try two-finger scroll and volume mode; watch the bar and arrow feedback.
+6. Swipe with an open palm; check `SWIPE RIGHT/LEFT` events.
+7. Press **EMERGENCY STOP** once, then **RE-ARM**, so you know the drill.
+8. Tune Settings (sensitivity, pinch threshold) to your hand.
+9. Set `Settings -> Safety -> Input mode -> Live` and repeat briefly for real.
 
 ## 9. Troubleshooting
 
 | Symptom | Fix |
 |---|---|
 | "Camera busy" | Another app (Teams/Zoom/OBS) holds the webcam. Close it, then START CAMERA. |
-| No skeleton appears | Make sure the camera is started; check 02 Camera for tracking. |
+| No skeleton appears | Make sure the camera is started; check 03 Camera for tracking. |
 | Skeleton drawn in ink, not orange | Control is not ACTIVE — that is by design. |
 | Cursor jumps too much | Lower Cursor → Sensitivity or raise Smoothing. |
-| Accidental clicks | Raise Click → Cooldown or Pinch threshold, or disable pinch in 03 Gestures. |
-| Volume changes by itself | Volume-mode misread (thumb up). Make a fist first. |
+| Accidental clicks | Raise Click → Cooldown or Pinch threshold, or disable pinch in 04 Gestures. |
+| Scroll goes the wrong way / never stops | Return your hand to the pose's start position; raise Scroll → Dead zone in Settings. |
+| Volume changes by itself | Make a fist first, then re-enter volume mode from a calm start position. |
+| Swipes fire too easily | Disable swipes in Settings, or swipe more decisively (25% of frame width within 0.4 s). |
+| Dwell ring never fills | Enable Click → Dwell in Settings, or reduce the dwell time. |
+| Volume never changes | Check 06 About: the volume check must be OK. Volume uses media keys; some keyboards/apps intercept them. |
 | LINK LOST in the status line | Backend not running, or wrong port. Check the console, then RETRY. |
 | Hotkey does nothing | Another app may own the shortcut. Check the event log for `HOTKEY UNAVAILABLE` and free the combo. |
 
