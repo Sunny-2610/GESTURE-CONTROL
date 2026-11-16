@@ -195,6 +195,28 @@ export function TutorialPage() {
           </div>
         </div>
         <p className="mt-6 font-body text-ink-muted">{current.hint}</p>
+        <div className="mt-6 flex items-center gap-3 border-t border-ink pt-4">
+          <Button
+            variant="secondary"
+            disabled={step === 0}
+            onClick={() => {
+              matchStart.current = null;
+              setStep((s) => Math.max(0, s - 1));
+            }}
+          >
+            Back
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              matchStart.current = null;
+              if (step + 1 >= STEPS.length) setDone(true);
+              else setStep(step + 1);
+            }}
+          >
+            {step + 1 >= STEPS.length ? "Finish" : "Next"}
+          </Button>
+        </div>
         {idle && (
           <p className="mt-6 border border-dashed border-ink p-3 font-label uppercase tracking-[0.06em] text-ink-muted">
             Preview only &mdash; start control from the dashboard to send actions
