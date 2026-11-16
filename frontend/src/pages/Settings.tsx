@@ -86,6 +86,12 @@ export function SettingsPage() {
           <SettingsRow label="Double click" description="Send a double click on pinch." {...changedRow(["click", "double_click"], settings.saved, s)}>
             <Switch checked={s.click.double_click} onChange={(v) => settings.update(["click", "double_click"], v)} label="Double click" />
           </SettingsRow>
+          <SettingsRow label="Dwell click" description="Hold the cursor still with the pointer pose to click." {...changedRow(["click", "dwell_enabled"], settings.saved, s)}>
+            <Switch checked={s.click.dwell_enabled} onChange={(v) => settings.update(["click", "dwell_enabled"], v)} label="Dwell click" />
+          </SettingsRow>
+          <SettingsRow label="Dwell time" description="How long the cursor must stay still before the dwell click." {...changedRow(["click", "dwell_ms"], settings.saved, s)}>
+            {num(["click", "dwell_ms"], s.click.dwell_ms, 500, 3000, 100, (v) => `${v} ms`)}
+          </SettingsRow>
         </SettingsGroup>
 
         <SettingsGroup name="Scroll">
@@ -103,6 +109,12 @@ export function SettingsPage() {
           </SettingsRow>
           <SettingsRow label="Smoothing" {...changedRow(["volume", "smoothing"], settings.saved, s)}>
             {num(["volume", "smoothing"], s.volume.smoothing, 0, 0.95, 0.05, (v) => v.toFixed(2))}
+          </SettingsRow>
+        </SettingsGroup>
+
+        <SettingsGroup name="Swipes">
+          <SettingsRow label="Browser swipes" description="Open-palm swipes send Alt+Left / Alt+Right (browser back and forward)." {...changedRow(["swipes", "enabled"], settings.saved, s)}>
+            <Switch checked={s.swipes.enabled} onChange={(v) => settings.update(["swipes", "enabled"], v)} label="Browser swipes" />
           </SettingsRow>
         </SettingsGroup>
 
