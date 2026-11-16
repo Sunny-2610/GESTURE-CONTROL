@@ -14,6 +14,7 @@ export function GestureCell({
   onOpen: () => void;
 }) {
   const inverted = detected && gesture.enabled;
+  const fg = inverted ? "#ECE9E2" : "#1A1916";
   return (
     <article
       className={`flex h-full flex-col p-6 ${
@@ -36,8 +37,8 @@ export function GestureCell({
         className="mt-2 block w-full text-left"
         aria-label={`Open detail for ${gesture.title}`}
       >
-        <div className="flex h-[140px] items-center justify-center">
-          <PoseDrawing pose={gesture.name} color={inverted ? "#ECE9E2" : "#1A1916"} />
+        <div className="flex h-[160px] items-center justify-center">
+          <PoseDrawing pose={gesture.name} color={fg} size={160} />
         </div>
         <h2
           className={`mt-2 font-heading text-[20px] font-semibold leading-7 ${
@@ -46,7 +47,14 @@ export function GestureCell({
         >
           {gesture.title}
         </h2>
-        <p className={`mt-1 font-body ${inverted ? "text-paper" : gesture.enabled ? "text-ink" : "text-ink-muted"}`}>
+        <p
+          className={`mt-1 font-label uppercase tracking-[0.06em] ${
+            inverted ? "text-paper" : gesture.enabled ? "text-ink" : "text-ink-muted"
+          }`}
+        >
+          {gesture.motion}
+        </p>
+        <p className={`mt-1 font-body ${inverted ? "text-paper/80" : "text-ink-muted"}`}>
           {gesture.pose}
         </p>
         <p className={`mt-1 font-body ${inverted ? "text-paper/80" : "text-ink-muted"}`}>

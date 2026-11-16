@@ -1,128 +1,194 @@
 /**
- * Hand-pose line drawings (Design.md 7.14): 1.5px monoline hands in a 140px-high
- * viewBox. `highlight` marks the landmarks that matter for the pose, and thin
- * dimension lines show where a distance matters (pinch gap).
+ * Hand-pose line drawings (Design.md 7.14): 1.5px monoline hands in a 160x160
+ * viewBox, no fills except square joint markers. Every pose pairs the hand
+ * with a small motion hint: an arrow, an icon, or a ring, so a first-time
+ * user can read what to do from the picture alone.
  */
-export function PoseDrawing({ pose, color }: { pose: string; color: string }) {
-  const stroke = { stroke: color, strokeWidth: 1.5, fill: "none", strokeLinecap: "round" as const };
-  const W = 120;
-  const H = 140;
+export function PoseDrawing({
+  pose,
+  color,
+  size = 160,
+}: {
+  pose: string;
+  color: string;
+  size?: number;
+}) {
+  const s = { stroke: color, strokeWidth: 1.5, fill: "none", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  const thin = { stroke: color, strokeWidth: 1, fill: "none", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   const joint = (x: number, y: number, size = 5) => (
     <rect x={x - size / 2} y={y - size / 2} width={size} height={size} fill={color} />
   );
 
-  // palm block anchored at wrist (60, 120)
-  const palm = (
-    <path d="M40 120 L38 88 Q38 78 48 78 L72 78 Q82 78 82 88 L80 120 Z" {...stroke} />
+  // standard palm block, wrist open at the bottom, knuckles at y=100
+  const palm = <path d="M56 150 L56 110 Q56 100 66 100 L94 100 Q104 100 104 110 L104 150" {...s} />;
+
+  // vertical double-headed arrow (volume / scroll)
+  const vArrow = (x: number, y1: number, y2: number) => (
+    <g>
+      <line x1={x} y1={y1 + 5} x2={x} y2={y2 - 5} {...thin} />
+      <path d={`M${x - 4} ${y1 + 6} L${x} ${y1} L${x + 4} ${y1 + 6}`} {...thin} />
+      <path d={`M${x - 4} ${y2 - 6} L${x} ${y2} L${x + 4} ${y2 - 6}`} {...thin} />
+    </g>
   );
 
-  const fingerUp = (x: number, tipY: number) => (
-    <>
-      <line x1={x} y1={80} x2={x} y2={tipY} {...stroke} />
-    </>
-  );
-
-  let fingers: JSX.Element;
+  let body: JSX.Element;
   let marks: JSX.Element | null = null;
-  let dims: JSX.Element | null = null;
 
   switch (pose) {
-    case "closed_fist":
-      fingers = (
+    case "closed_fist": {
+      body = (
         <>
-          <path d="M44 80 Q44 70 52 70 L76 70 Q84 70 84 78 L84 86" {...stroke} />
-          <path d="M44 78 Q36 74 38 66" {...stroke} />
-        </>
-      );
-      marks = joint(60, 78);
-      break;
-    case "volume_mode":
-      fingers = (
-        <>
-          <path d="M44 80 Q44 70 52 70 L74 70 Q82 70 82 78 L82 86" {...stroke} />
-          <path d="M42 82 Q30 74 26 58 Q25 52 31 52 L34 54" {...stroke} />
-        </>
-      );
-      marks = (
-        <>
-          {joint(31, 53)}
-          {joint(60, 78)}
-        </>
-      );
-      dims = (
-        <line x1="34" y1="52" x2="34" y2="16" {...stroke} strokeDasharray="3 3" />
-      );
-      break;
-    case "two_finger_scroll":
-      fingers = (
-        <>
-          {fingerUp(50, 34)}
-          {fingerUp(62, 32)}
-          <path d="M72 80 Q72 72 78 74" {...stroke} />
-          <path d="M80 82 Q84 76 88 78" {...stroke} />
+          <path d="M62 150 L62 106 Q62 96 72 96 L94 96 Q104 96 104 106 L104 150" {...s} />
+          {/* curled finger creases */}
+          <path d="M70 104 Q76 99 82 104" {...thin} />
+          <path d="M84 104 Q90 99 96 104" {...thin} />
+          {/* thumb wrapped across the fingers */}
+          <path d="M62 124 Q72 112 86 115 Q100 118 102 110" {...s} />
+          {/* pause icon: two vertical bars */}
+          <rect x={124} y={46} width={6} height={22} {...s} />
+          <rect x={134} y={46} width={6} height={22} {...s} />
         </>
       );
       marks = (
         <>
-          {joint(50, 34)}
-          {joint(62, 32)}
+          {joint(72, 96)}
+          {joint(94, 96)}
         </>
       );
       break;
-    case "pinch_click":
-      fingers = (
+    }
+    case "pinch_click": {
+      body = (
         <>
-          <path d="M50 80 Q48 62 54 52 Q58 46 64 48" {...stroke} />
-          <path d="M42 84 Q32 72 40 62 Q44 58 50 60 Q56 62 60 58 Q64 52 70 54" {...stroke} />
-          <path d="M74 80 Q76 74 82 76" {...stroke} />
-          <path d="M80 82 Q86 78 88 82" {...stroke} />
+          {palm}
+          {/* index bent down to the contact point */}
+          <path d="M66 100 Q62 84 72 76 Q77 72 82 72" {...s} />
+          {/* thumb meeting it */}
+          <path d="M58 124 Q55 110 66 100 Q74 92 82 76" {...s} />
+          {/* middle, ring, pinky loosely curled */}
+          <path d="M80 100 Q86 93 80 89" {...s} />
+          <path d="M94 100 Q100 93 94 89" {...s} />
+          <path d="M104 102 Q110 96 104 92" {...s} />
+          {/* contact circle + click burst */}
+          <circle cx={82} cy={72} r={4.5} {...thin} />
+          <line x1={90} y1={64} x2={97} y2={58} {...thin} />
+          <line x1={92} y1={72} x2={102} y2={72} {...thin} />
+          <line x1={90} y1={80} x2={97} y2={86} {...thin} />
+        </>
+      );
+      marks = joint(82, 72, 6);
+      break;
+    }
+    case "three_finger": {
+      body = (
+        <>
+          {palm}
+          {/* index, middle, ring raised and spread slightly */}
+          <path d="M66 100 Q60 74 58 50" {...s} />
+          <path d="M80 100 Q80 72 80 46" {...s} />
+          <path d="M94 100 Q98 76 100 54" {...s} />
+          {/* pinky and thumb curled in */}
+          <path d="M104 102 Q110 94 104 90" {...s} />
+          <path d="M58 120 Q50 114 54 106" {...s} />
+          {/* speaker with three volume bars */}
+          <path d="M20 62 L28 62 L36 54 L36 82 L28 74 L20 74 Z" {...thin} />
+          <line x1={42} y1={62} x2={42} y2={70} {...thin} />
+          <line x1={48} y1={57} x2={48} y2={75} {...thin} />
+          <line x1={54} y1={52} x2={54} y2={80} {...thin} />
+          {/* volume arrow */}
+          {vArrow(126, 54, 100)}
         </>
       );
       marks = (
         <>
-          {joint(64, 48)}
-          {joint(66, 55)}
-        </>
-      );
-      dims = (
-        <>
-          <line x1="66" y1="48" x2="66" y2="55" stroke={color} strokeWidth="1" />
-          <line x1="80" y1="48" x2="80" y2="55" stroke={color} strokeWidth="1" strokeDasharray="2 2" />
+          {joint(58, 50)}
+          {joint(80, 46)}
+          {joint(100, 54)}
         </>
       );
       break;
-    case "pointer":
-      fingers = (
+    }
+    case "two_finger_scroll": {
+      body = (
         <>
-          {fingerUp(52, 30)}
-          <path d="M64 80 Q64 72 70 74" {...stroke} />
-          <path d="M74 82 Q78 76 84 78" {...stroke} />
-          <path d="M84 84 Q88 80 92 84" {...stroke} />
+          {palm}
+          {/* index and middle raised in a V */}
+          <path d="M66 100 Q58 74 56 52" {...s} />
+          <path d="M80 100 Q82 72 84 48" {...s} />
+          {/* ring and pinky curled, thumb tucked */}
+          <path d="M94 100 Q100 94 94 90" {...s} />
+          <path d="M104 102 Q110 96 104 92" {...s} />
+          <path d="M58 122 Q50 116 54 108" {...s} />
+          {/* scroll arrow */}
+          {vArrow(126, 54, 100)}
+          {/* mouse with wheel */}
+          <rect x={22} y={116} width={20} height={26} rx={6} {...s} />
+          <line x1={32} y1={123} x2={32} y2={132} {...thin} />
         </>
       );
-      marks = joint(52, 30);
+      marks = (
+        <>
+          {joint(56, 52)}
+          {joint(84, 48)}
+        </>
+      );
       break;
+    }
+    case "pointer": {
+      body = (
+        <>
+          {palm}
+          {/* only the index raised */}
+          <path d="M66 100 Q64 72 64 46" {...s} />
+          <path d="M80 100 Q86 94 80 90" {...s} />
+          <path d="M94 100 Q100 94 94 90" {...s} />
+          <path d="M104 102 Q110 96 104 92" {...s} />
+          <path d="M58 122 Q50 116 54 108" {...s} />
+          {/* dwell-click ring around the fingertip */}
+          <circle cx={64} cy={42} r={11} {...thin} strokeDasharray="4 3" />
+          {/* cursor arrow icon */}
+          <path d="M118 36 L118 58 L124 52 L128 62 L132 60 L128 51 L136 51 Z" {...thin} />
+        </>
+      );
+      marks = joint(64, 46);
+      break;
+    }
     case "open_palm":
-    default:
-      fingers = (
+    default: {
+      body = (
         <>
-          {fingerUp(42, 44)}
-          {fingerUp(54, 32)}
-          {fingerUp(66, 30)}
-          {fingerUp(78, 36)}
-          <path d="M40 92 Q32 86 34 78 L40 78" {...stroke} />
+          {/* palm shifted up so the swipe arrow fits underneath */}
+          <path d="M58 134 L58 100 Q58 92 66 92 L94 92 Q102 92 102 100 L102 134" {...s} />
+          {/* five fingers spread */}
+          <path d="M66 92 Q60 68 56 44" {...s} />
+          <path d="M80 92 Q80 66 78 38" {...s} />
+          <path d="M94 92 Q97 66 99 40" {...s} />
+          <path d="M102 96 Q108 76 112 56" {...s} />
+          <path d="M60 116 Q48 108 46 94 Q46 88 52 88" {...s} />
+          {/* horizontal swipe arrow with back/forward chevrons */}
+          <line x1={32} y1={146} x2={128} y2={146} {...thin} />
+          <path d="M37 141 L32 146 L37 151" {...thin} />
+          <path d="M123 141 L128 146 L123 151" {...thin} />
+          <path d="M26 140 L20 146 L26 152" {...thin} />
+          <path d="M134 140 L140 146 L134 152" {...thin} />
         </>
       );
-      marks = null;
+      marks = (
+        <>
+          {joint(56, 44)}
+          {joint(78, 38)}
+          {joint(99, 40)}
+          {joint(112, 56)}
+        </>
+      );
       break;
+    }
   }
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="140" height="140" aria-hidden>
-      {palm}
-      {fingers}
+    <svg viewBox="0 0 160 160" width={size} height={size} aria-hidden>
+      {body}
       {marks}
-      {dims}
     </svg>
   );
 }
