@@ -13,6 +13,7 @@ from app.schemas.models import (
     ArmRequest,
     CommandResponse,
     ControllerState,
+    EngineToast,
     EventEntry,
     GestureRegistry,
     InputModeRequest,
@@ -295,12 +296,33 @@ async def ws_gestures(websocket: WebSocket) -> None:
                 if rt.pipeline
                 else {"hands": [], "fps": None, "proc_ms": None, "ts": time.time()}
             )
+            engine = (
+                rt.pipeline.engine.status()
+                if rt.pipeline and hasattr(rt.pipeline, "engine")
+                else {}
+            )
+            cursor = rt.pipeline.input_ctl.last_xy if rt.pipeline else None
             frame = WsFrameMessage(
                 ts=snap["ts"],
                 state=rt.machine.state,
                 fps=snap.get("fps"),
                 proc_ms=snap.get("proc_ms"),
-                hands=[WsHand(**{k: v for k, v in h.items() if k != "pinch"}) for h in snap.get("hands", [])],
+                hands=[
+                    WsHand(
+                        **{
+                            **{k: v for k, v in h.items() if k != "pinch"},
+                            "cursor": cursor,
+                        }
+                    )
+                    for h in snap.get("hands", [])
+                ],
+                mode=engine.get("mode", "idle"),
+                volume=engine.get("volume"),
+                volume_direction=engine.get("volume_direction", 0),
+                scroll_velocity=engine.get("scroll_velocity", 0.0),
+                dwell_progress=engine.get("dwell_progress", 0.0),
+                volume_anchor=engine.get("volume_anchor"),
+                toast=EngineToast(**engine["toast"]) if engine.get("toast") else None,
             )
             await websocket.send_text(frame.model_dump_json())
             while True:
